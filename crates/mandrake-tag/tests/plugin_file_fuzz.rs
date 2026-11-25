@@ -179,7 +179,13 @@ fn the_downloads_folder_is_searched_after_the_games_plugins() {
     let names = |f: &tag_files::EngineTagFiles| -> Vec<String> {
         f.paths
             .iter()
-            .map(|p| p.strip_prefix(&base).unwrap().display().to_string())
+            .map(|p| {
+                p.strip_prefix(&base)
+                    .unwrap()
+                    .display()
+                    .to_string()
+                    .replace('\\', "/")
+            })
             .collect()
     };
     tag_files::set_downloads_dir(None);
