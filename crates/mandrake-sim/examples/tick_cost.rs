@@ -1,9 +1,11 @@
 use std::alloc::{GlobalAlloc, Layout, System};
+#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
 use std::ffi::c_long;
 use std::fmt::Write as _;
 use std::fs::File;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::io::{Read, Write};
+#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
 use std::os::fd::FromRawFd;
 use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -36,10 +38,12 @@ unsafe impl GlobalAlloc for Counting {
 #[global_allocator]
 static GLOBAL: Counting = Counting;
 
+#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
 unsafe extern "C" {
     fn syscall(n: c_long, ...) -> c_long;
 }
 
+#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
 #[repr(C)]
 struct PerfAttr {
     kind: u32,
@@ -52,6 +56,7 @@ struct PerfAttr {
     rest: [u64; 10],
 }
 
+#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
 fn instruction_counter() -> Option<File> {
     const SYS_PERF_EVENT_OPEN: c_long = 298;
     let attr = PerfAttr {
@@ -75,6 +80,11 @@ fn instruction_counter() -> Option<File> {
         )
     };
     (fd >= 0).then(|| unsafe { File::from_raw_fd(fd as i32) })
+}
+
+#[cfg(not(all(target_os = "linux", target_arch = "x86_64")))]
+fn instruction_counter() -> Option<File> {
+    None
 }
 
 fn read_counter(f: &mut Option<File>) -> u64 {
