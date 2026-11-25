@@ -1,0 +1,36 @@
+name: myth2-server
+services:
+  myth2-server:
+    image: myth2-server:latest
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      args:
+        REVISION: "${M2_REVISION:-unknown}"
+        REVISION_DATE: "${M2_REVISION_DATE:-}"
+    restart: unless-stopped
+    user: "${M2_UID:-1000}:${M2_GID:-1000}"
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    ports:
+      - "${M2_BIND:-0.0.0.0}:${M2_PORT:-3453}:3453/tcp"
+      - "${M2_WEB_BIND:-127.0.0.1}:${M2_WEB_PORT:-8080}:8080/tcp"
+      - "${M2_BIND:-0.0.0.0}:${M2_TFL_PORT:-3454}:3454/tcp"
+    environment:
+      RUST_LOG: "${RUST_LOG:-info}"
+      M2_SERVER_ARGS: "${M2_SERVER_ARGS:-}"
+      M2_SITE_DATA: "${M2_SITE_DATA:-0}"
+      M2_TFL_SERVER_ARGS: "${M2_TFL_SERVER_ARGS:-}"
+      M2_SITE_TFL: "${M2_SITE_TFL:-0}"
+    volumes:
+      - "${MYTH2_DATA:-./data}:/data/myth2:ro"
+      - "${MYTH2_PLUGINS:-./plugins}:/data/plugins:ro"
+      - "${TFL_DATA:-./tfl}:/data/tfl:ro"
+      - "${M2_CONFIG:-./config}:/config:ro"
+      - "${M2_FILMS:-./films}:/films"
+      - "${M2_LOGS:-./logs}:/logs"

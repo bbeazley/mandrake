@@ -1,0 +1,17 @@
+[package]
+name = "mandrake-render"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+mandrake-common.workspace = true
+mandrake-tag.workspace = true
+mandrake-view.workspace = true
+wgpu.workspace = true
+bytemuck.workspace = true
+image.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+naga = { version = "30.0", features = ["wgsl-in", "glsl-out"] }

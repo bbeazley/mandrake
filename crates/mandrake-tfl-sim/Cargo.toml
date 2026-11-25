@@ -1,0 +1,14 @@
+[package]
+name = "mandrake-tfl-sim"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Myth: The Fallen Lords (TFL 1.5) game rules, beside Myth II's mandrake-sim"
+
+[dependencies]
+mandrake-common.workspace = true
+mandrake-math.workspace = true
+mandrake-tag.workspace = true
+mandrake-rec.workspace = true
+thiserror.workspace = true
+tracing.workspace = true

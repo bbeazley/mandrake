@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Myth II: Soulblighter</title>
+<meta name="description" content="Myth II: Soulblighter in the browser: the demo's campaign and multiplayer.">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%2307080a'/%3E%3Crect x='3' y='3' width='58' height='58' rx='8' fill='none' stroke='%236b5531' stroke-width='2'/%3E%3Ctext x='32' y='47' font-family='Georgia,Times New Roman,serif' font-size='40' font-weight='700' text-anchor='middle' fill='%23e8c47c'%3EII%3C/text%3E%3C/svg%3E">
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #07080a;
+    --panel: rgba(16, 15, 13, 0.96);
+    --line: #6b5531;
+    --line-soft: #3a3226;
+    --accent: #c9a25a;
+    --accent-hi: #e8c47c;
+    --text: #e6dfd2;
+    --muted: #a39a8a;
+    --field: #0d0c0b;
+    --error: #e06a5a;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: radial-gradient(ellipse at 50% 30%, #1a1712 0%, var(--bg) 70%);
+    color: var(--text);
+    font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    overflow: hidden;
+  }
+  canvas#myth2 { display: block; outline: none; position: fixed; inset: 0; width: 100vw;
+    height: 100vh; cursor: default; touch-action: none; }
+  body:has(#landing:not([hidden])) canvas#myth2 { visibility: hidden; }
+  body:has(#landing:not([hidden])) { overflow-y: auto; }
+
+  #landing { position: relative; z-index: 1; min-height: 100%; display: flex;
+    align-items: center; justify-content: center; padding: 24px 16px; }
+  .panel { width: 100%; max-width: 520px; background: var(--panel);
+    border: 1px solid var(--line); border-radius: 6px; padding: 28px 28px 22px;
+    box-shadow: 0 0 40px rgba(201, 162, 90, 0.18), inset 0 0 0 1px rgba(0, 0, 0, 0.6); }
+  h1 { margin: 0; font: 600 30px/1.1 Georgia, "Times New Roman", serif; letter-spacing: 0.06em;
+    color: var(--accent-hi); text-align: center; text-shadow: 0 0 14px rgba(201, 162, 90, 0.35); }
+  .sub { margin: 4px 0 22px; text-align: center; color: var(--muted); font-size: 13px;
+    letter-spacing: 0.18em; text-transform: uppercase; }
+  fieldset { border: 0; margin: 0 0 18px; padding: 0; min-width: 0; }
+  legend, label.field { display: block; font-size: 12px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 7px; padding: 0; }
+
+  .presets { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .preset { position: relative; display: block; border: 1px solid var(--line-soft);
+    border-radius: 4px; padding: 10px 12px; cursor: pointer; background: var(--field); }
+  .preset input { position: absolute; opacity: 0; pointer-events: none; }
+  .preset b { display: block; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+  .preset span { display: block; font-size: 12.5px; color: var(--muted); line-height: 1.35; }
+  .preset:has(input:checked) { border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent) inset; }
+  .preset:has(input:checked) b { color: var(--accent-hi); }
+  .preset:has(input:focus-visible) { outline: 2px solid var(--accent-hi); outline-offset: 2px; }
+  .preset:has(input:disabled) { opacity: 0.45; cursor: not-allowed; }
+
+  input[type="text"] { width: 100%; padding: 10px 12px; background: var(--field);
+    border: 1px solid var(--line-soft); border-radius: 4px; color: var(--text); font: inherit; }
+  input[type="text"]:focus { outline: none; border-color: var(--accent); }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 5px; }
+
+  .colours { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .swatches { display: flex; flex-wrap: wrap; gap: 6px; }
+  .swatch { width: 26px; height: 26px; border-radius: 3px; border: 1px solid #000;
+    box-shadow: 0 0 0 1px var(--line-soft); padding: 0; cursor: pointer; }
+  .swatch[aria-checked="true"] { box-shadow: 0 0 0 2px var(--accent-hi); }
+  .swatch:focus-visible { outline: 2px solid var(--accent-hi); outline-offset: 2px; }
+  .picked { font-size: 12px; color: var(--muted); margin-top: 6px; min-height: 1.4em; }
+
+  button { font: inherit; }
+  .play { width: 100%; padding: 13px; margin-top: 4px; background: #8a6a32; color: #fff8ea;
+    border: 1px solid var(--accent); border-radius: 4px; font-size: 16px; font-weight: 600;
+    letter-spacing: 0.14em; text-transform: uppercase; cursor: pointer; }
+  .play:hover:not(:disabled) { background: #a07c3c; }
+  .play:disabled { background: #2a2620; color: #7a7266; border-color: var(--line-soft);
+    cursor: default; }
+  .links { margin-top: 12px; text-align: center; font-size: 12.5px; color: var(--muted); }
+  .links a, .links button.link { color: var(--accent); background: none; border: 0; padding: 0;
+    cursor: pointer; text-decoration: underline; font-size: inherit; }
+
+  #progress { margin-top: 18px; }
+  .bar-head { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; }
+  #phase { color: var(--text); }
+  #percent { color: var(--accent-hi); font-variant-numeric: tabular-nums; }
+  .bar { height: 8px; background: #1d1a15; border-radius: 4px; overflow: hidden; margin-top: 7px; }
+  #fill { height: 100%; width: 0; background: linear-gradient(90deg, #8a6a32, var(--accent-hi));
+    transition: width 0.15s ease-out; }
+  #bytes { font-size: 12px; color: var(--muted); margin-top: 6px; min-height: 1.4em;
+    font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+  #error { margin-top: 10px; color: var(--error); font-size: 13px; overflow-wrap: anywhere; }
+  #status { white-space: pre-wrap; font: 11px ui-monospace, monospace; color: #8a8377;
+    margin-top: 12px; max-height: 120px; overflow-y: auto; }
+  #status:empty { display: none; }
+  #needs { border: 1px solid var(--error); border-radius: 4px; padding: 14px 16px;
+    background: rgba(224, 106, 90, 0.08); margin-bottom: 6px; }
+  #needs b { display: block; color: var(--error); font-size: 16px; margin-bottom: 6px; }
+  #needs p { margin: 0; overflow-wrap: anywhere; }
+  .version { margin-top: 14px; text-align: center; font-size: 11.5px; color: #6f685c;
+    font-variant-numeric: tabular-nums; }
+  .version:empty { display: none; }
+  @media (max-width: 460px) {
+    .panel { padding: 22px 16px 18px; }
+    .presets, .colours { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div id="landing">
+  <div class="panel">
+    <h1>Myth II: Soulblighter</h1>
+    <div class="sub">in the browser</div>
+
+    <div id="needs" role="alert" hidden>
+      <b id="needs-title"></b>
+      <p id="needs-text"></p>
+    </div>
+
+    <form id="choices" autocomplete="off">
+      <fieldset>
+        <legend>Game</legend>
+        <div class="presets" id="games">
+          <label class="preset"><input type="radio" name="game" value="myth2">
+            <b>Myth II: Soulblighter</b>
+            <span>The 1.8.5 game: its campaign and multiplayer.</span></label>
+          <label class="preset"><input type="radio" name="game" value="tfl">
+            <b>Myth: The Fallen Lords</b>
+            <span id="tfl-note">The 1.5 game: its campaign and multiplayer.</span></label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Display</legend>
+        <div class="presets">
+          <label class="preset"><input type="radio" name="preset" value="original">
+            <b>Original</b>
+            <span>As the 1.8.5 game draws it, the interface pixel for pixel.</span></label>
+          <label class="preset"><input type="radio" name="preset" value="retro-modern" checked>
+            <b>Retro-modern</b>
+            <span>The software renderer's crisp landscape with lighting and fog, a smooth
+              interface at 200%, sharp sprites.</span></label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <label class="field" for="name">Multiplayer name</label>
+        <input type="text" id="name" maxlength="31" placeholder="Your name" spellcheck="false">
+        <div class="hint">Shown to the other players in a network game.</div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Team colours</legend>
+        <div class="colours">
+          <div>
+            <div class="hint" id="primary-label" style="margin:0 0 6px">Primary</div>
+            <div class="swatches" id="primary" role="radiogroup" aria-labelledby="primary-label"></div>
+            <div class="picked" id="primary-name"></div>
+          </div>
+          <div>
+            <div class="hint" id="secondary-label" style="margin:0 0 6px">Secondary</div>
+            <div class="swatches" id="secondary" role="radiogroup" aria-labelledby="secondary-label"></div>
+            <div class="picked" id="secondary-name"></div>
+          </div>
+        </div>
+      </fieldset>
+
+      <button type="submit" class="play" id="play" disabled>Loading…</button>
+    </form>
+
+    <div id="progress" hidden>
+      <div class="bar-head"><span id="phase"></span><span id="percent"></span></div>
+      <div class="bar"><div id="fill"></div></div>
+      <div id="bytes"></div>
+    </div>
+    <div id="error" hidden></div>
+    <div class="links" id="links">
+      <span id="link-own" hidden>The game data comes from this server once and stays in this
+        browser. <a href="?own">Use your own Myth II folder instead.</a></span>
+      <span id="link-own-folder" hidden>The game data is yours: Play asks for your Myth II folder
+        (the one with <code>tags</code> and <code>plugins</code>); it stays in this browser.
+        <button type="button" class="link" id="forget" hidden>Forget the stored folder</button></span>
+      <input id="pick-input" type="file" webkitdirectory hidden>
+    </div>
+    <div id="status"></div>
+    <div class="version" id="version"></div>
+  </div>
+</div>
+<canvas id="myth2" tabindex="0"></canvas>
+<script type="module" src="./client.js"></script>
+</body>
+</html>

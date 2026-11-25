@@ -1,0 +1,52 @@
+name: Bug Report
+description: Report a crash, rendering issue, or gameplay difference in Mandrake
+labels: ["bug"]
+body:
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System & Architecture
+      options:
+        - Windows x86_64
+        - Windows ARM64
+        - macOS Apple Silicon
+        - Linux x86_64
+        - Linux ARM64
+        - Steam Deck (SteamOS)
+        - Web Client (Browser)
+    validations:
+      required: true
+  - type: dropdown
+    id: game
+    attributes:
+      label: Game
+      options:
+        - "Myth II: Soulblighter (1.8.5)"
+        - "Myth: The Fallen Lords (1.5)"
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Mandrake Version
+      placeholder: "e.g. v0.1.0"
+    validations:
+      required: true
+  - type: input
+    id: gpu
+    attributes:
+      label: GPU / Driver (if known)
+      placeholder: "e.g. NVIDIA RTX 3070, Apple M2, Steam Deck"
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the issue and the steps to reproduce it.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or Error Output (optional)
+      description: If you launched Mandrake from a terminal, paste any error output here.
+      render: text

@@ -1,0 +1,9 @@
+[package]
+name = "mandrake-net"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+mandrake-rec.workspace = true
+mandrake-common.workspace = true

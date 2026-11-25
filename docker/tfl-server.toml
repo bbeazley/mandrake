@@ -1,0 +1,11 @@
+game_kind = "tfl"
+data_dir = "/data/tfl"
+port = 3454
+name = "TFL Server"
+films_dir = "/films/tfl"
+
+[game]
+map = "58cm"
+game_type = 0
+time_limit_minutes = 10
+max_players = 16

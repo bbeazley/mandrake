@@ -1,0 +1,22 @@
+[package]
+name = "mandrake-server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "mandrake-server"
+path = "src/main.rs"
+
+[dependencies]
+mandrake-common.workspace = true
+mandrake-tag.workspace = true
+mandrake-rec.workspace = true
+mandrake-sim.workspace = true
+mandrake-tfl-sim.workspace = true
+mandrake-net.workspace = true
+mandrake-session.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+toml_edit.workspace = true

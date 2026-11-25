@@ -1,0 +1,47 @@
+# Myth II source port: the "Retro-modern" setup (the web page's Retro-modern preset): the
+# software renderer's landscape, the interface through Lanczos-2 at 200% (lowered on a window too
+# small for it), sprites sharp up close, the lighting and the fog on, and no control bar (its key
+# still shows it). The same file plays Myth: The Fallen Lords (--game tfl) with Myth II's extras:
+# smoothed between ticks, the hover frame, the detail shadows, the fog and the lighting, Myth II's
+# unit selection, and the status bar across the width. Merged over the shipped settings
+# (mandrake --write-default-conf FILE writes them all, with their comments).
+#
+# Copy it to your config folder (~/.config/myth2-sourceport) and start with
+#     mandrake --conf mandrake.modernretro.toml
+#     mandrake --conf mandrake.modernretro.toml --game tfl
+# The client writes what it changes (the control bar, Ctrl +/- zoom, the multiplayer name) here.
+
+[game]
+# Myth II: Soulblighter by default; --game tfl (or game = "tfl" here) plays The Fallen Lords.
+# The Fallen Lords' game folder, the one holding tags/*.gor (by default TFL_DATA_DIR, else TFL in
+# a Steam Proton prefix, else Myth_TFL in the current folder), relative to this file's folder.
+# tfl_data = "~/Games/Myth_TFL"
+
+[display]
+ui_filter = "lanczos2"
+sprite_filter = "sharp"
+sampling = "software"
+ui_scale = 200
+# The look switches, both games.
+lighting = "on"
+fog = "on"
+detail_shadows = true
+# The Tarn plugin's "Last Stand at Tarn (Water Demo)" (85tl) and the Three Causeways plugin's maps
+# (85tc, 85tk) are water demos: the enhanced water on them, the game's own on every other map.
+water = "enhanced"
+water_maps = ["85tl", "85tk", "85tc"]
+
+[display.tfl]
+# The Fallen Lords with Myth II's behaviour: smoothed between ticks, the hover frame (the shipped
+# behaviour, stated).
+smoothing = true
+hover_frames = true
+
+[interface]
+control_bar = false
+# The Fallen Lords' status bar across the top: "original" (640 pixels centred, as TFL 1.5) or
+# "fit_width".
+status_bar = "fit_width"
+# The Fallen Lords selects units by Myth II 1.8.5's rules (the shipped behaviour, stated), or
+# "tfl" by TFL 1.5's.
+selection = "myth2"

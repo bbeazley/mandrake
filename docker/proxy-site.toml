@@ -1,0 +1,13 @@
+# The proxy for the web site: the image's
+# proxy.toml, plus the mounted game data and plugins served to browsers under /game/. The
+# entrypoint takes it when M2_SITE_DATA=1 and /config/proxy.toml doesn't exist. Whatever is mounted
+# at /data/myth2 and /data/plugins becomes public: mount the Myth II demo only.
+listen = "0.0.0.0:8080"
+path = "/myth2-ws"
+target = "127.0.0.1:3453"       # the mandrake-server in this container
+max_sessions = 64
+web_root = "/usr/share/myth2/web"
+game_dir = "/data/myth2"        # its tags/, served under /game/tags/
+plugins_dir = "/data/plugins"   # served under /game/plugins/
+downloads_dir = "/data/plugins" # our clients' plugin downloads, /plugins/<checksum>
+max_downloads = 4

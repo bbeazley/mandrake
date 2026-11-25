@@ -1,0 +1,11 @@
+[package]
+name = "mandrake-view"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+mandrake-common.workspace = true
+mandrake-math.workspace = true
+mandrake-tag.workspace = true
+bytemuck.workspace = true

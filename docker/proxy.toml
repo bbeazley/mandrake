@@ -1,0 +1,7 @@
+listen = "0.0.0.0:8080"
+path = "/myth2-ws"
+target = "127.0.0.1:3453"
+max_sessions = 64
+web_root = "/usr/share/myth2/web"
+downloads_dir = "/data/plugins"
+max_downloads = 4

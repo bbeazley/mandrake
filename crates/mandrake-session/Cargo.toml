@@ -1,0 +1,12 @@
+[package]
+name = "mandrake-session"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+mandrake-common.workspace = true
+mandrake-tag.workspace = true
+mandrake-rec.workspace = true
+mandrake-net.workspace = true
+tracing.workspace = true

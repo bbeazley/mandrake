@@ -1,0 +1,812 @@
+# Myth II source port settings (Myth II and The Fallen Lords): mandrake.toml, every setting with
+# its shipped value.
+#
+# The client reads mandrake.toml in its config folder ($XDG_CONFIG_HOME/myth2-sourceport, else
+# ~/.config/myth2-sourceport, else on Windows %APPDATA%\myth2-sourceport), or the file
+# --conf FILE names: a bare name (--conf mandrake.modernretro.toml) is looked up in that folder,
+# a path with a folder is used as it is. Keep several files to switch between setups.
+#
+# Your file is merged over this one: list only what you want to change; a table left out keeps
+# the shipped values. Lowest first, what decides a value is: the shipped values, your file, then
+# the command line's flags. mandrake --write-default-conf FILE writes this file.
+#
+# What the client changes itself goes to the file in use, keeping your comments and order: the
+# control bar ([interface] control_bar), Ctrl +/- ([display] ui_zoom) and the multiplayer name,
+# team and colours ([net]).
+#
+# The [fog] and [lighting] tables are read again when the file changes, with the game running;
+# the other tables are read at the start (or, [water], at a map's load).
+
+# ---------------------------------------------------------------------------------------------
+# [game]: which game a run plays and where the games' data is (read at the start, before the data
+# is opened). Nothing is set here. Lowest first, what decides each is: the shipped behaviour, your
+# file, the environment (MYTH2_DATA_DIR, TFL_DATA_DIR), then the flags (--game, --archive,
+# --tfl-data). A relative folder is relative to this file's folder.
+# ---------------------------------------------------------------------------------------------
+[game]
+# "soulblighter" (Myth II: Soulblighter; "myth2" works too) or "tfl" (Myth: The Fallen Lords), as
+# --game. By default a TFL film or a --tfl-data folder that holds TFL means tfl, else soulblighter.
+# One file serves both games: leave game out and start The Fallen Lords with --game tfl.
+# game = "soulblighter"
+# Myth II's game folder (the one holding tags/ and plugins/), as MYTH2_DATA_DIR. By default the
+# current folder, else data/ beside the mandrake executable. A folder starting with ~/ is in your
+# home folder.
+# myth2_data = "~/Games/Myth II"
+# The Fallen Lords' game folder (the one holding tags/*.gor), as --tfl-data / TFL_DATA_DIR. By
+# default TFL in a Steam Proton prefix, else Myth_TFL in the current folder.
+# tfl_data = "~/Games/Myth_TFL"
+
+# ---------------------------------------------------------------------------------------------
+# [display]: the loose settings and the command-line settings a whole setup takes. Nothing is set
+# here: each key below shows its shipped behaviour. A flag on the command line wins over a key.
+# Read at the start: restart for a change.
+# ---------------------------------------------------------------------------------------------
+[display]
+# The interface scale of Ctrl +/- in percent (100, 125, 150, 175, 200, 250, 300, 400), written by
+# the client. ui_scale below (or --ui-scale) wins over it.
+# ui_zoom = 100
+# The dialogs over the game (the pause and Save Game dialogs, the mission objectives, Saved Games,
+# New Game, unit trading; both games') in percent of a 640x480 screen fitted to the window, the
+# same in both games and at every ui_zoom: at 3840x2160 that is 4.5x, so 75 draws them at 3.375x.
+# 25 to 100; never below the dialog's own pixels (1x), and a native interface (ui_scale native,
+# Myth II) keeps them as they are. The bars and the menus keep their size.
+# dialog_scale = 75
+
+# The command line's settings (each as its flag takes it; on/off flags also take true/false):
+# ui_scale = "native"       # --ui-scale: native, a zoom level (1.5 or 150) or 768p
+# ui_filter = "lanczos2"    # --ui-filter: sharp, nearest, linear or lanczos2
+# sprite_filter = "sharp"   # --sprite-filter: linear, sharp, nearest or lanczos2
+# sampling = "software"     # --sampling: software, linear, bicubic or sharp
+# water = "off"             # --water: enhanced or off
+# water_maps = ["85tl"]     # --water-maps: only these maps' water enhanced (default all)
+
+# The look switches, for whichever game is run (Myth II or The Fallen Lords); each game has its
+# own default when a key is left out. The [fog] and [lighting] tables below give the values, by
+# map, for both games.
+# fog = "on"                # --fog: on, off or engine. Myth II by default on, engine with
+#                           # sampling "linear" (Myth II 1.8.5's own fog by depth); The Fallen
+#                           # Lords on (engine is TFL 1.5's: no fog)
+# lighting = "off"          # --lighting: on or off. Myth II off by default, The Fallen Lords on
+# detail_shadows = true     # --detail-shadows: The Fallen Lords only: Myth II 1.8.5's detail
+#                           # shadows under its objects (on by default), or false for TFL 1.5's
+#                           # shadow bitmaps. Myth II always draws its detail shadows, as 1.8.5 does
+
+# Plugin detail textures on the landscape (--detail-textures); off by default.
+# detail_textures = false
+# Wait for the display's refresh (--vsync); off by default.
+# vsync = false
+# A 10-bit surface where the GPU and the display server offer one (--ten-bit); on by default.
+# false keeps the 8-bit sRGB surface, with the water's dither against its banding.
+# ten_bit = true
+# The frame-rate cap (--fps-cap): "auto" (the monitor's refresh rate less 1: 239 at 240 Hz), a
+# number or "off"; auto by default.
+# fps_cap = "auto"
+# allow_downloads = false: never download a game's missing plugins from our dedicated server.
+# allow_downloads = true
+# The largest plugin downloaded, in MB.
+# plugin_download_max_mb = 512
+
+# [display.tfl]: The Fallen Lords' own behaviour, which Myth II doesn't have. Read at the start.
+[display.tfl]
+# smoothing = false: draw The Fallen Lords tick by tick, 30 pictures a second as TFL 1.5 does;
+# by default its camera and objects move between ticks as Myth II's do.
+# smoothing = true
+# sprite_interpolation = false: The Fallen Lords' units step from drawn frame to drawn frame, as
+# TFL 1.5 does; by default they also draw the in-betweens of the sprite interpolation cache,
+# where it has them. M2_SPRITE_INTERP=0 or 1 overrides it for a run, and F9 toggles it in game.
+# sprite_interpolation = true
+# hover_frames = false: The Fallen Lords frames only the selection and a command's targets, as
+# TFL 1.5 does; by default the monster under the pointer is framed too, as in Myth II.
+# hover_frames = true
+# sound_rules = "tfl": The Fallen Lords' sound mixes as TFL 1.5's does: 4 channels for one-shot
+# sounds, its stereo pan and channel choice, the level's ambient among the positional sounds and the
+# listener 5120 world units (10 cells) ahead of the camera. By default ("myth2") it mixes as Myth
+# II's: 5 channels, Myth II's pan and channel choice, the level's ambient as the stereo background
+# and the listener at the camera, as in Myth II.
+# sound_rules = "myth2"
+
+# ---------------------------------------------------------------------------------------------
+# [net]: your multiplayer player (what the game's player and TCP/IP dialogs keep), written by the
+# client. The name and the team are the game's bytes, one Latin-1 character each, so that every
+# byte comes back as it was. The game's text is Mac Roman: the default team's "Õ" is the byte
+# 0xd5, which the game shows as "’" ("’s Team").
+# ---------------------------------------------------------------------------------------------
+[net]
+# name = ""
+# team = "Õs Team"
+# icon = 0
+# Primary [r, g, b, 0] then secondary, 16 bits each.
+# colors = [22936, 2291, 12107, 0, 50212, 36018, 6695, 0]
+# port = 3453
+# address = ""
+
+# ---------------------------------------------------------------------------------------------
+# [sound]: the sound of both games (read at the start: restart for a change).
+# ---------------------------------------------------------------------------------------------
+[sound]
+# volume: the master volume, a multiplier on everything the mixer plays: 0.0 is silent, 1.0 is
+# the games' own level (Myth II's as 1.8.5's, The Fallen Lords' as TFL 1.5's), above 1.0 louder,
+# where the loudest moments can clip. --master-volume wins for a run.
+# volume = 1.0
+
+# ---------------------------------------------------------------------------------------------
+# [interface]: the windows, the menus and the cutscenes (read at the start: restart for a change).
+# A headless run reads only the file it is given with --conf.
+# ---------------------------------------------------------------------------------------------
+[interface]
+
+# Whether the window opens borderless fullscreen on its monitor, with no change of display mode.
+# With false, it opens as a window of --width x --height. Alt+F11 switches between the two while
+# the game runs (toggle_fullscreen in the controls), without changing this file. Headless runs,
+# --screenshot and --frame-budget always keep a window.
+fullscreen = true
+
+# Whether the control bar shows at the bottom of the screen. With false, the 3D view takes its
+# space and the keys for the bar's actions still work, as in Myth II with the bar turned off.
+# Shift+F6 (toggle_control_bar in the controls) shows or hides it while the game runs, and at quit
+# saves control_bar to the file in use, keeping the file's other lines; a headless run saves
+# nothing.
+control_bar = true
+
+# How the menus and pregame screens go up to the window: "sharp" or "lanczos2". They fill the window
+# keeping their shape, by a fraction where they need to. --ui-filter wins for a run.
+menu_filter = "sharp"
+
+# Sharpening strength for the "lanczos2" UI filter, from 0 (unsharpened) to 1.
+lanczos_sharpen = 0.4
+
+# How the cutscenes (the films of the cutscenes folder) go up to the window, apart from the menus:
+# "fsr1" (AMD FidelityFX Super Resolution 1: an edge-adaptive upscale, then sharpening), "sharp",
+# "lanczos2", "linear" or "nearest". --cutscene-filter wins for a run.
+cutscene_filter = "fsr1"
+
+# Whether a cutscene plays an upscaled HD film of it, when there is one
+# ($XDG_DATA_HOME/myth2-sourceport/cutscenes-hd/<name>.ivf, else ~/.local/share/...) with the
+# .smk's frame count; it keeps the .smk's sound. false plays the .smk. --cutscene-hd wins for a run.
+cutscene_hd = true
+
+# The sharpening of "fsr1", in stops from 0 (the sharpest) to 2: each stop halves it.
+fsr_sharpness = 0.5
+
+# The art of the menus: "800x600", the Myth II Interface (800x600) plugin, or "stock", the 640x480
+# art. Only the menus read it: it never reaches the game's tags.
+menu_art = "800x600"
+
+# Myth: The Fallen Lords' status bar across the top: "original", 640 pixels centred as TFL 1.5 draws
+# it, or "fit_width", across the screen's width (with --ui-scale, the interface's screen): its two
+# ends once at the screen's edges and its middle repeated between them, every other copy mirrored;
+# the pause and map buttons go to the right end. Myth II's bar always spans the screen.
+status_bar = "original"
+
+# How Myth: The Fallen Lords selects units and orders them: "myth2", by Myth II 1.8.5's rules (a
+# band replaces the selection unless Shift or Alt, a double click selects the clicked unit's type,
+# a press drops a monster only looked at, Shift at the press adds a waypoint, a flick on a
+# selected unit turns it in place), or "tfl", by TFL 1.5's (a band adds to the selection, a 250
+# pixel drag arms it, a double click selects the last selected one's type, a flick faces by the
+# screen). Both select at most 30 monsters, as TFL 1.5. --selection wins for a run. Myth II always
+# uses its own.
+selection = "myth2"
+
+# ---------------------------------------------------------------------------------------------
+# [controls]: Myth II's key bindings and mouse options (read at the start: restart for a change).
+#
+# These reproduce the Myth II 1.8.5 "Configure Controls" dialog with the built-in "Right Handed"
+# set. Your file is merged over them: list only the entries you want to change. Start the table
+# with
+#     preset = "left_handed"
+# to take the game's "Left Handed" set (the camera on the keypad) as the base.
+#
+# Bindings: action = "Key" or action = ["Key", "Key"]; an empty list [] unbinds the action.
+# Key names follow the dialog ("W", "Backquote", "Return", "Up Arrow", "Keypad 8", ...).
+# A binding can require modifiers: "Ctrl+Q", "Shift+X", "Alt+X".
+# Modifier keys themselves are "Control", "Shift", "Option" and "Alt/Command".
+# ---------------------------------------------------------------------------------------------
+[controls]
+
+[controls.bindings]
+# Camera
+move_forward = "W"
+move_backward = "S"
+move_left = "Z"
+move_right = "X"
+turn_left = "A"
+turn_right = "D"
+orbit_left = "Q"
+orbit_right = "E"
+zoom_in = "C"     # Shift+C: next zoom preset in
+zoom_out = "V"    # Shift+V: next zoom preset out
+
+# Selection and orders
+clear_selection = "Backquote"
+rotate_preset = "F"
+stop_units = "Space"
+select_all = "Return"
+clear_preset = "Delete"
+recall_set_preset = "Alt/Command"   # modifier: hold with a number key
+center_selection = "H"
+scatter_units = "B"
+retreat_units = "R"
+attack_ground = "Control"           # modifier: hold while clicking the ground
+special_ability = "T"
+rename_units = "N"
+chat_message = "Y"
+detach_units = "Backslash"
+guard_units = "G"
+overhead_map = "Tab"
+pause_game = "Escape"
+display_chat = "Up Arrow"
+taunt = "U"
+rotate_units_right = "Right Arrow"
+rotate_units_left = "Left Arrow"
+inventory = "I"
+
+# Formations / presets on the number keys (the dialog's "Preset Selection" 1 to 0).
+preset_selection_1 = "1"
+preset_selection_2 = "2"
+preset_selection_3 = "3"
+preset_selection_4 = "4"
+preset_selection_5 = "5"
+preset_selection_6 = "6"
+preset_selection_7 = "7"
+preset_selection_8 = "8"
+preset_selection_9 = "9"
+preset_selection_0 = "0"
+
+# Bindings Myth II has that its dialog does not show.
+form_break_alliance = "Plus"
+orbit_zoom_modifier = "Keypad 0"
+
+# Source-port extension (not in Myth II): Escape pauses the game as in Myth, so quitting
+# the client has its own binding.
+quit = "Ctrl+Q"
+
+# Myth II's fixed keys, bindable here: F1 slower, F2 faster; with Shift, Normal or Stopped and
+# the fastest.
+game_speed_down = "F1"
+game_speed_up = "F2"
+
+# Myth II's fixed keys too: F13, or F12 with Option. The PNG and a text file with the view go in
+# the pictures folder's Screenshots.
+screenshot = ["F13", "Alt+F12"]
+
+# Myth II's fixed keys too: Forward Delete, or Delete (Backspace) with Shift. The fps display at the
+# top right of the view, off when the game starts.
+toggle_fps_display = ["Forward Delete", "Shift+Delete"]
+
+# Myth II's fixed key too: F11 with Alt. Switches between borderless fullscreen and the window;
+# [interface] `fullscreen` says which the client opens in, and the key doesn't change it. The key
+# reaches nothing else.
+toggle_fullscreen = "Alt+F11"
+
+# Myth II's fixed keys too: F5 or F12, without Shift or Control, in a game that can be saved. Writes
+# "Quicksave 1" to "Quicksave 5" in turn, the oldest replaced once all five are there. Alt+F12 stays
+# the screenshot's.
+quicksave = ["F5", "F12"]
+
+# Myth II's fixed key too: F6 with Shift, in a game. Shows or hides the control bar, and the 3D view
+# takes or gives back its strip at once; a film has none. The bar keeps its state for the rest of
+# the run; the next run starts from [interface] `control_bar` (the client writes nothing to the
+# game's Preferences).
+toggle_control_bar = "Shift+F6"
+
+# Myth II's fixed keys too, the score table: the game type, the time and every team's and player's
+# line, while F7 is held; F7 with Shift keeps it on or off. With caps_lock = "player_stats" below,
+# Caps Lock shows it too.
+show_scores = "F7"        # held
+toggle_scores = "Shift+F7"
+
+# TFL 1.5's fixed key: every key binding, while F8 is held.
+show_key_bindings = "F8"  # held
+
+[controls.options]
+right_click = "gesture_move"        # ignored | gesture_move | attack_ground | deselect_units
+mouse_wheel = "zoom"                # ignored | move | zoom | cycle_presets | cycle_inventory
+                                    # (Myth II's default is "ignored"; this client ships "zoom")
+caps_lock = "selection_boxes"       # ignored | selection_boxes | health_bars | player_stats | chat_backlog
+horiz_mouse_movement = "move"       # ignored | move | rotate | orbit
+enable_mouse_movement = true        # edge scrolling
+top_corners_rotate_camera = false
+bottom_corners_orbit_camera = false
+reverse_axis = false
+left_click_doesnt_gesture = false
+tfl_mouse_actions = false
+use_control_bar_inventory = false
+alternate_preset_recall = false
+right_click_through_ui = false
+tilde_ignores_inventory = false
+system_keyboard_layout = true
+alternate_unit_selection = false
+
+# ---------------------------------------------------------------------------------------------
+# [fog]: the height fog (--fog on). Read again when the file changes, with the game running.
+#
+# Lowest first, what decides a value is: the shipped [fog.default], the shipped [fog.map.<mesh
+# tag>], your [fog.default], your [fog.map.<mesh tag>], then the command line flags (--fog-opacity
+# and the others).
+#
+# A map with a fog density in its mesh tag has height fog by default. An explicit
+# [fog.map.<mesh tag>] table, or CLI --fog-* flags, enables height fog on any map even without a
+# stock tag density. A map's colour is its tag's unless a [fog.map.<mesh tag>] table sets one
+# (maps with 0 density fall back to a natural mist colour if black).
+#
+# The Fallen Lords' maps have their own tables, [fog.tfl.map.<mesh tag>], because the two games'
+# mesh tags overlap (both have 00tm). [fog.default] is both games'. TFL's meshes have no fog
+# density, so a TFL map is fogged only when a [fog.tfl.map.<mesh tag>] table names it or a --fog-*
+# flag is given.
+# ---------------------------------------------------------------------------------------------
+[fog]
+
+[fog.default]
+# How much the fog hides looking straight down at its base height, 0 to below 1.
+opacity = 0.5
+# The height over which the fog thins to about a third, as a share of the map's lowest to high
+# ground.
+falloff = 0.25
+# The fog's base, in cells above the map's lowest ground.
+base = 0.0
+# How patchy the fog is, 0 for even, up to 1 for clear gaps.
+patchiness = 0.7
+# Patch size, in cells.
+patch_size = 6.0
+# How fast the patches drift, in cells per second.
+speed = 0.35
+# The share of the ground under the patches (where they're more than half their density), 0 to
+# 1. Lower it for separate patches with clear ground between, as clouds drifting over a lake.
+# It changes where the patches are, not how thick: patchiness 1 gives clear gaps.
+coverage = 0.5
+# How soft a patch's edge is, above 0 up to 1: 0.5 gives wisps that fade out over most of a
+# patch, 0.1 defined banks with a sharp edge.
+softness = 0.5
+
+# Salvation.
+[fog.map.cr01]
+opacity = 0.3
+falloff = 0.3
+# Red, green, blue, each 0 to 1.
+color = [0.08, 0.12, 0.18]
+patchiness = 0.75
+speed = 0.35
+
+# Fen, dark.
+[fog.map.84fd]
+opacity = 0.2
+falloff = 0.3
+
+# The Stair of Grief: a snowy pass by day, a heavy blue-white haze driven through the pass.
+[fog.map.12mp]
+opacity = 0.5
+falloff = 0.5
+base = 0.0
+color = [0.84, 0.88, 0.94]
+patchiness = 0.5
+patch_size = 12.0
+speed = 1.0
+
+# The level after the Stair of Grief (13td): the same snowy haze as 12mp.
+[fog.map.13td]
+opacity = 0.5
+falloff = 0.5
+base = 0.0
+color = [0.84, 0.88, 0.94]
+patchiness = 0.5
+patch_size = 12.0
+speed = 1.0
+
+# Dead of Winter: a light snow haze that drifts, subtle enough not to hide the units.
+[fog.map.89sn]
+opacity = 0.3
+falloff = 0.3
+base = 0.0
+color = [0.86, 0.89, 0.94]
+patchiness = 0.7
+patch_size = 10.0
+speed = 0.8
+
+# Tarn (85tl, the Last Stand mission; 85tn, the map) has no default fog so the water shows clearly.
+
+# TFL's maps are fogged only when named here. The Siege of Madrigal (03di) has none: a clear
+# full-moon night; its moonlight is [lighting.tfl.map.03di]'s.
+
+# 07 Bagrada in winter (balo): patchy, light fog. Pale cold mist in separate slow-drifting patches
+# with clear ground between them, not a veil over the map.
+[fog.tfl.map.balo]
+opacity = 0.16
+falloff = 0.3
+base = 0.0
+color = [0.80, 0.85, 0.92]
+patchiness = 1.0
+patch_size = 10.0
+speed = 0.3
+coverage = 0.35
+softness = 0.5
+
+# ---------------------------------------------------------------------------------------------
+# [lighting]: real-time lighting, per map (--lighting on). Read again when the file changes, with
+# the game running.
+#
+# Bungie's maps are already pre-lit for daytime conditions. To preserve their original atmosphere,
+# maps without an explicit [lighting.map.<mesh tag>] table remain unlit by default even when
+# --lighting on is specified. Command-line flags (--lighting-darkness, --lighting-ambient-color,
+# --lighting-light-intensity) override these values. Supplying --lighting-darkness or
+# --lighting-ambient-color on the command line also forces lighting on for any map.
+#
+# The Fallen Lords' maps have their own tables, [lighting.tfl.map.<mesh tag>], because the two
+# games' mesh tags overlap (both have 00tm). A TFL map is lit only when one names it, or a flag is
+# given. A lit TFL map has Myth II's point lights too: its flaming projectiles (the dwarves'
+# bottles, their bursts and flames) light the ground around them.
+# ---------------------------------------------------------------------------------------------
+[lighting]
+
+# Salvation
+[lighting.map.cr01]
+darkness = 0.95
+ambient_color = [0.25, 0.32, 0.45]
+light_intensity = 0.65
+
+# Tarn (85tl, the Last Stand mission; 85tn, the map) at sunrise: a warm, slightly dimmed ambient
+# over Bungie's baked daylight shading.
+[lighting.map.85tl]
+darkness = 0.85
+ambient_color = [1.0, 0.78, 0.62]
+light_intensity = 0.4
+
+[lighting.map.85tn]
+darkness = 0.85
+ambient_color = [1.0, 0.78, 0.62]
+light_intensity = 0.4
+
+# TFL, The Siege of Madrigal (03di): moonlight, a cool blue ambient, lighter than Salvation's.
+[lighting.tfl.map.03di]
+darkness = 0.85
+ambient_color = [0.55, 0.65, 0.85]
+
+# ---------------------------------------------------------------------------------------------
+# [water]: the enhanced water (--water enhanced), off by default (read at each map's load). An
+# unknown key or a bad value is logged and skipped.
+#
+# The landscape is drawn at the terrain's physical height, fogged by the water above it, under a
+# transparent surface at the game's water height and wobble. It is drawn from the map's own data
+# (its colours, its heights, its water's wobble, its light colour) and these settings, except for
+# the generated wave pattern (wind waves, gusts, swash, glint points).
+# ---------------------------------------------------------------------------------------------
+[water]
+
+# Where the water's colour comes from (with physical: the tint of its in-scattering; without:
+# what deep water fades to):
+#   "map"   (default) the map's own painted water: per cell, the average of the colormap over the
+#           water cells within color_radius, weighted by depth squared so the deep water the
+#           artist painted decides it, not the shore; times color_scale.
+#   "color" water_color below, one colour for every map.
+color_mode = "map"
+# With color_mode = "map": scale of the map's water colour (1 = as painted; below 1 darker).
+color_scale = 1.0
+# With color_mode = "map": radius, in cells, of the water averaged into each cell's colour.
+color_radius = 4.0
+# With color_mode = "color": the water's colour, red, green, blue, each 0 to 1.
+water_color = [0.06, 0.12, 0.14]
+# --- Physical absorption and in-scattering (default on) ---
+# On: the water's colour comes from physics. Per channel, absorption a (pure water plus the
+# particles) and backscattering b (pure water plus the particles); the light falling on the water
+# is the map's baked shading where it is (the only light Myth II has). The bed keeps
+# exp(-c (1 + mu) path) of its colour (light down to it and back up the eye path, c = a + b, mu
+# the eye ray's slope) and the water adds the light it backscatters toward the eye. Off: the
+# hand-tuned curve below (absorption, shallow_tint, deep_max) and the surface's own colour.
+physical = true
+# Metres per cell (512 world units). A human unit (warrior wam1, bowman arch) is 580 world units
+# tall (its sequence's world bounds at scale 1); taken as 1.8 m: 512 * 1.8 / 580 = 1.589.
+meters_per_cell = 1.589
+# Pure water's absorption per metre, red, green, blue (Pope & Fry, about 650, 550, 450 nm).
+pure_absorption = [0.45, 0.07, 0.02]
+# Particles in the water: their scattering per metre (0 = pure water, 0.1 clear sea, 1 coastal,
+# 5 murky). More turbidity = brighter, more opaque water of the tint's hue.
+turbidity = 1.0
+# What is dissolved in the water: its absorption per metre, red, green, blue (tannins, coloured
+# dissolved organic matter: strongest in blue, least in red; tea-coloured peat lakes). 0 = none.
+dissolved_absorption = [0.0, 0.0, 0.0]
+# The particles' absorption per metre per unit of turbidity.
+turbidity_absorption = 0.05
+# Share of the particles' scattering that goes back toward the eye (Petzold's average 0.019).
+backscatter_ratio = 0.019
+# Tint the particles' backscatter by the water colour of color_mode (above), normalized to its
+# brightest channel, so each map keeps its own hue. false = neutral particles.
+scatter_tint = true
+
+# How much the water blurs the bed seen through it (forward scattering, the surface's jitter):
+# blur radius in cells per cell of path through the water (0 = none). At the waterline there is
+# no path, so the landscape keeps its own sampling (the software look) there exactly.
+bed_blur = 0.25
+
+# How much the waves raise and lower the waterline (they lap): the game's wobble (times swell),
+# the interactive ripples and the wind waves' height, as they are at the shore (1), or a still
+# waterline (0). The waterline itself follows the terrain's smooth (Catmull-Rom) heights, not the
+# drawn triangles' straight edges.
+shore_swash = 1.0
+# Water thinner than this, metres, counts as none (0 = off). Old maps painted their water on: the
+# level is often set at the terrain's height, which hovers a few centimetres either side of it, so
+# a beach at the water level broke into patchy films and islands of water. With it those flats are
+# wet sand, and the shoreline is the smooth contour where the water is this deep (the swash still
+# moves it). Deep water is unchanged.
+min_depth = 0.03
+
+# --- Refraction (default on) ---
+# The bed is seen through the surface: the eye ray is refracted at the surface (Snell, water's
+# index 1.33, the wave normal) and the landscape is sampled where the refracted ray meets the
+# bed. Fades out at the waterline over surface_fade.
+refraction = true
+# Scale of the refracted displacement (1 = physical, 0 = none).
+refraction_strength = 1.0
+
+# --- Interactive ripples (default on) ---
+# A wave-equation heightfield over the map's water (up to 8 texels per cell, stepped 60 times a
+# second at the shallow-water speed sqrt(g * depth) from the cell heights), added to the surface's
+# normal (reflections, sheen, refraction). Driven by what the frame draws in the water: moving
+# units push a wake, and each splash and wading ripple the simulation creates (the media tag's
+# projectile groups) gives an impulse. Client side only.
+ripples = true
+# Scale of the disturbances' height (0 = still water).
+ripple_strength = 1.0
+# Share of a ripple's height lost per second (0 = never fades, 1 = gone at once).
+ripple_damping = 0.8
+
+# --- Wind ripples (default on) ---
+# Small directional waves in the surface's normal (no geometry), Tessendorf-style: three periodic
+# tiles (31, 7.3 and 1.7 m, not commensurate) of a random spectrum (fixed seed), one band of
+# wavelengths each, updated up to 60 times a second; irregular, no visible pattern. The spectrum
+# is Phillips-like around the wind direction between the two wavelengths below, with Cox & Munk's
+# total slope, slowed in the shallows (w^2 = g k tanh(k h)); what a pixel averages away widens the
+# sheen instead. The wind is the game's: its direction and, times ripple_wind_scale, its speed;
+# ripple_calm without it.
+wind_ripples = true
+# Metres per second of ripple wind per metre per second of the game's wind.
+ripple_wind_scale = 1.5
+# Ripple wind (metres per second) with no game wind; with wind the two add.
+ripple_calm = 1.5
+# Shortest and longest ripple wavelengths, metres (the spectrum's soft cuts).
+ripple_min_wavelength = 0.03
+ripple_max_wavelength = 6.0
+
+# Gusts (cat's paws): a slow, smooth patch field drifting with the wind scales the ripples
+# locally, rough patches and glassy calm between (generated too).
+gusts = true
+# Size of a patch, metres.
+gust_scale = 12.0
+# How much the patches change the ripples (0 = none, 1 = from glassy to double).
+gust_strength = 0.7
+# The patches' drift, metres per second per metre per second of ripple wind.
+gust_speed = 0.5
+
+# Fetch-limited waves (shelter): the open water upwind of each point (map data: where the
+# surface is drawn, marched against the game's wind to the first dry vertex; with no game wind,
+# the distance to the nearest shore) sets the peak of the wind waves there, as on real water
+# (JONSWAP: w_p = 22 (g^2 / (U F))^(1/3), wavelength 2 pi g / w_p^2): at 4 m/s a 3 m puddle
+# peaks at about 3 cm, a 30 m pond at 15 cm, a 200 m lake at 0.7 m. Longer waves fade out, and
+# what is shorter than a pixel only roughens the sheen. Off: every point as open water.
+shelter = true
+
+# --- River bed (default on) ---
+# A stock map paints its water into the colour map, which would show under the clear water as a
+# flat painting. At the load the painted water is repainted as a bed of the map's own dry ground
+# (quilted windows of its gravel, sand or rock; only the map's own colour indices), deeper water
+# darker. Computed once per map (about a second) and cached in ~/.cache/myth2/water-bed. Maps
+# that paint a real bed (Sandy Gimble, Tarn) have no water paint and are left as they are.
+river_bed = true
+
+# --- Wet sand (default on) ---
+# Dry terrain just above the still water level, near the water, is darkened and gets a little of
+# the water's sheen, both fading out with height.
+wet_sand = true
+# Height, in cells, above the water level over which the wetness fades out.
+wet_height = 0.1
+# Share of the colour taken away at the waterline (0 = none, 1 = black).
+wet_darken = 0.35
+# The wet terrain's sheen as a share of the water's (specular above; only on maps whose light
+# direction could be recovered).
+wet_specular = 0.5
+# Distance, in cells, from the water over which the wetness fades out sideways (at most 2), so the
+# wet band has no hard outer edge.
+wet_distance = 1.5
+
+# --- The hand-tuned curve (physical = false) ---
+# How fast the water hides the bed: absorption per cell (512 world units) of eye path through
+# water, red, green, blue. Higher = murkier; red above blue tints the shallows toward blue-green.
+absorption = [1.2, 0.9, 0.7]
+# Share of the water colour over the bed in the shallows (0 to 1), ramped in from the waterline
+# over surface_fade so the shore stays soft: shallow water is visibly water.
+shallow_tint = 0.3
+# Largest share of the water colour over the bed, however deep (1 = deep water solid colour).
+deep_max = 0.85
+# Opacity of the surface's own colour (the water colour) over the bed, 0 to 1. Only with
+# physical = false (with physics the water's colour is its in-scattering).
+surface_opacity = 0.15
+# Depth, in cells, over which reflections fade in from the shore (0 = no fade). Only with
+# physical = false: with physics a reflection does not depend on the depth.
+shore_fade = 0.15
+# Depth, in cells, over which the surface's own colour and the sheen fade in from the shore, so
+# neither starts at full strength at the waterline (0 = no fade). Measured on a smooth
+# (Catmull-Rom) terrain height, so the fade follows a curve rather than the cell edges.
+surface_fade = 0.3
+# Depth, in cells, of water under which the waves reach their full (the game's) height; over
+# shallower water they shrink in proportion, so there are no big waves over the shallows and a
+# trough never dips below the bed. 0 = the game's waves everywhere.
+wave_depth = 0.5
+# Share of the game's wobble kept, its height and its normals (1 = the game's). At metre
+# scale (meters_per_cell) the game's wobble is a swell across a pond (Salvation: 102 world
+# units, about 0.3 m); the small-scale look comes from the wind ripples below.
+swell = 0.1
+# Scales the slope of the wobble in the per-pixel normals (1 = the slope the vertices have).
+normal_strength = 1.0
+# The reflections of units and scenery. With physical = true they are drawn into their own layer
+# and seen through the waves (shifted by the wave slope, blurred where the water is rough), with
+# Schlick's Fresnel for water's F0 0.02: about 2 % looking straight down, all of it only at
+# grazing angles, much fainter than Myth's stock reflections.
+# Scale of the reflections over what the Fresnel term gives (e.g. 3 for brighter physical ones).
+reflection_strength = 1.0
+# How far the waves move a reflection, cells per unit of wave slope (about twice the height of a
+# reflected point; 0 = a still mirror).
+reflection_distortion = 1.0
+# How much rough water (the slope a pixel averages away) blurs a reflection, screen heights per
+# unit of slope (0 = never blurred).
+reflection_blur = 0.05
+# With physical = false: share of a reflection kept looking straight down; grazing views keep
+# all of it (1 = Fresnel off).
+reflection_min = 0.55
+# With physical = false: Fresnel exponent, higher keeps the full reflection only at more grazing
+# angles.
+fresnel_power = 2.0
+# Sun glint (specular sheen) strength (0 = off). White, like the sun's mirror image; see sheen_tint.
+# Directional: along the light fitted to the map's shading, or light_fallback below.
+specular = 0.25
+# Glint sparkle: a few bright points where single wave facets catch the sun, at the highlight's
+# fringe only (where a pixel holds less than about one glinting facet; elsewhere the smooth glint is
+# right). Points sit on a fixed world grid (they stay put as the camera moves), each a smooth disc a
+# few pixels wide that fades in and out over its own lifetime. Generated, no texture; only where
+# there is a light direction. 0 = off.
+glint_sparkle = 0.25
+# A wave facet's size, metres (how many a pixel holds, so where the points may appear).
+glint_facet = 0.03
+# A point's lifetime, seconds.
+glint_lifetime = 1.2
+# A point's radius, pixels.
+glint_size = 1.5
+# Specular exponent (higher = smaller, sharper glints).
+shininess = 64.0
+# How much of the map's light colour (the baked shading's tint, e.g. Salvation's orange) tints
+# the glint: 0 = white, 1 = that colour.
+sheen_tint = 0.0
+# Myth II has no light direction: the landscape's shading is baked into the .256. At the load the
+# direction is recovered from it: a least-squares Lambert fit of each dry cell's mean shading level
+# against its normal from the cell heights (shade = a + k N.L), logged with its R2. Below this R2
+# (or on a flat-shaded map) light_fallback decides.
+light_fit_min_r2 = 0.5
+# Where the fit is poor: [elevation, map azimuth] in degrees (map azimuth 0 along the mesh column,
+# 90 along the row), or "off" for no directional highlights there (only the reflections and
+# Fresnel). The fitted maps share their azimuth (Bungie baked them with one light): Sandy Gimble
+# 33.6 / -133.5 (R2 0.44), Gonen 31.3 / -136.6 (0.69), Salvation 15.3 / -132.5 (0.64); the
+# default is their R2-weighted mean. The log says which one each map uses.
+light_fallback = [26.1, -134.3]
+# An explicit direction toward the light instead of the fit, render space: y up, x falls with the
+# mesh column, z grows with the row. Not set by default.
+# light_direction = [0.35, 0.8, -0.5]
+
+# --- Per-map settings ---
+# A [water.map.<mesh tag>] table sets keys for that map only (any key above). Lowest first, what
+# decides a value is: the shipped [water] keys, the shipped [water.map.<mesh tag>], your [water]
+# keys, then your [water.map.<mesh tag>]. A key after a table header belongs to that table.
+
+# Tarn (85tl, the Last Stand mission; 85tn, the map): a peat lake, tea-coloured by tannins
+# (dissolved organic matter, which absorbs blue most and red least): amber over the shallows'
+# bed, dark brown in the deep water; the particles' backscatter tinted tea-brown (water_color).
+[water.map.85tl]
+color_mode = "color"
+water_color = [0.40, 0.30, 0.12]
+dissolved_absorption = [0.05, 0.65, 2.2]
+backscatter_ratio = 0.025
+
+[water.map.85tn]
+color_mode = "color"
+water_color = [0.40, 0.30, 0.12]
+dissolved_absorption = [0.05, 0.65, 2.2]
+backscatter_ratio = 0.025
+
+# ---------------------------------------------------------------------------------------------
+# [tfl.controls]: The Fallen Lords' key bindings and mouse options, as [controls] (read at the
+# start: restart for a change). A TFL run reads only this table; [controls] is Myth II's.
+#
+# These are TFL 1.5's built-in "Right Handed" set over the client's own keys (quit, game speed,
+# screenshots, fullscreen, quicksave, scores). Your file is merged over them: list only the entries
+# you want to change. Start the table with
+#     preset = "left_handed"
+# to take TFL's "Left Handed" set (the camera on the keypad) as the base; the bindings
+# listed in the table still apply over the preset, so leave out the ones it should change.
+#
+# Bindings and key names as in [controls]. TFL has no Taunt, Rotate Units, Inventory or Break
+# Alliance keys: those actions are unbound. Display Chat is Myth II's (hold Up Arrow for the chat
+# back log, Shift+Up while holding it to keep it up). The mouse options are [controls.options]'s;
+# TFL 1.5's own (edge scrolling, the side edges move) are the defaults.
+# ---------------------------------------------------------------------------------------------
+[tfl.controls]
+
+[tfl.controls.bindings]
+# Camera
+move_forward = "W"
+move_backward = "S"
+move_left = "Z"
+move_right = "X"
+turn_left = "A"
+turn_right = "D"
+orbit_left = "Q"
+orbit_right = "E"
+zoom_in = "C"
+zoom_out = "V"
+
+# Selection and orders
+clear_selection = "Backquote"
+rotate_preset = "F"
+stop_units = "Space"
+select_all = "Return"
+clear_preset = "Delete"
+recall_set_preset = "Alt/Command"   # modifier: hold with a number key
+center_selection = "H"
+scatter_units = "B"
+retreat_units = "R"
+attack_ground = "Control"           # modifier: hold while clicking the ground
+special_ability = "T"
+rename_units = "N"
+chat_message = "Y"
+detach_units = "Backslash"
+guard_units = "G"
+overhead_map = "Tab"
+pause_game = "Escape"
+orbit_zoom_modifier = "Keypad 0"
+
+# Myth II's actions TFL 1.5 has no key for.
+taunt = []
+rotate_units_right = []
+rotate_units_left = []
+inventory = []
+form_break_alliance = []
+
+# Formations / presets on the number keys.
+preset_selection_1 = "1"
+preset_selection_2 = "2"
+preset_selection_3 = "3"
+preset_selection_4 = "4"
+preset_selection_5 = "5"
+preset_selection_6 = "6"
+preset_selection_7 = "7"
+preset_selection_8 = "8"
+preset_selection_9 = "9"
+preset_selection_0 = "0"
+
+# The client's own keys and TFL's fixed ones: Forward Delete alone toggles the fps
+# display, as TFL 1.5 has no Shift+Delete for it.
+quit = "Ctrl+Q"
+game_speed_down = "F1"
+game_speed_up = "F2"
+screenshot = ["F13", "Alt+F12"]
+toggle_fps_display = ["Forward Delete"]
+toggle_fullscreen = "Alt+F11"
+quicksave = ["F5", "F12"]
+toggle_control_bar = "Shift+F6"
+show_scores = "F7"        # held
+toggle_scores = "Shift+F7"
+show_key_bindings = "F8"  # held
+display_chat = "Up Arrow" # held: the chat back log, as Myth II's
+
+[tfl.controls.options]
+right_click = "attack_ground"       # ignored | gesture_move | attack_ground | deselect_units
+mouse_wheel = "zoom"                # ignored | move | zoom | cycle_presets | cycle_inventory
+caps_lock = "selection_boxes"       # ignored | selection_boxes | health_bars | player_stats | chat_backlog
+horiz_mouse_movement = "move"       # ignored | move | rotate | orbit
+enable_mouse_movement = true        # edge scrolling, as TFL 1.5's mouse controls
+top_corners_rotate_camera = false
+bottom_corners_orbit_camera = false
+reverse_axis = false
+left_click_doesnt_gesture = false
+tfl_mouse_actions = false
+use_control_bar_inventory = false
+alternate_preset_recall = false
+right_click_through_ui = false
+tilde_ignores_inventory = false
+system_keyboard_layout = true
+alternate_unit_selection = false

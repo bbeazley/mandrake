@@ -1,0 +1,18 @@
+# The build context is the repo root; only what the build stage copies goes in.
+*
+!Cargo.toml
+!Cargo.lock
+!LICENSE-MIT
+!LICENSE-APACHE
+!crates
+!tools
+!docker/third-party-licenses.sh
+!scripts/web/client.html
+!scripts/web/client.js
+!scripts/web/stamp.sh
+!docker/server.toml
+!docker/tfl-server.toml
+!docker/proxy.toml
+!docker/proxy-site.toml
+!docker/entrypoint.sh
+**/target

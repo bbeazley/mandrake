@@ -1,0 +1,198 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows-x86_64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            ext: zip
+          - name: windows-arm64
+            os: windows-11-arm
+            target: aarch64-pc-windows-msvc
+            ext: zip
+          - name: macos-arm64
+            os: macos-14
+            target: aarch64-apple-darwin
+            ext: zip
+          - name: linux-x86_64
+            os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            zigbuild: "true"
+            ext: tar.gz
+          - name: linux-arm64
+            os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            zigbuild: "true"
+            ext: tar.gz
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Determine release version
+        id: version
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            VER="${GITHUB_REF#refs/tags/}"
+          else
+            VER="dev-${GITHUB_SHA::8}"
+          fi
+          echo "ver=${VER}" >> "$GITHUB_OUTPUT"
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libasound2-dev pkg-config cmake nasm
+          curl -fsSL https://ziglang.org/download/0.14.0/zig-linux-$(uname -m)-0.14.0.tar.xz | sudo tar -xJ -C /usr/local --strip-components=1
+          cargo install --locked cargo-zigbuild
+
+      - name: Run self-contained tests
+        run: cargo test --workspace --locked
+
+      - name: Build mandrake (Windows / macOS)
+        if: matrix.zigbuild != 'true'
+        run: cargo build --release --locked -p mandrake-client --bin mandrake --target ${{ matrix.target }}
+
+      - name: Build mandrake (Linux glibc 2.31)
+        if: matrix.zigbuild == 'true'
+        run: |
+          cargo zigbuild --release --locked -p mandrake-client --bin mandrake \
+            --target ${{ matrix.target }}.2.31
+          BIN="target/${{ matrix.target }}/release/mandrake"
+          MAX="$(objdump -T "$BIN" | grep -o 'GLIBC_[0-9][0-9.]*' | sort -u -t_ -k2,2V | tail -1)"
+          echo "Max glibc symbol: $MAX"
+          [ "$(printf '%s\n' "$MAX" GLIBC_2.31 | sort -t_ -k2,2V | tail -1)" = GLIBC_2.31 ]
+
+      - name: Package Windows archive
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ver = "${{ steps.version.outputs.ver }}"
+          $name = "mandrake-$ver-${{ matrix.name }}"
+          $stage = "dist/$name"
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          Copy-Item "target/${{ matrix.target }}/release/mandrake.exe" "$stage/mandrake.exe"
+          Copy-Item "crates/mandrake-client/mandrake.original.toml" "$stage/"
+          Copy-Item "LICENSE-MIT", "LICENSE-APACHE", "THIRD_PARTY_NOTICES.md" "$stage/"
+          (Get-Content "scripts/dist/README.txt") -replace "@VERSION@", $ver | Set-Content "$stage/README.txt"
+          Compress-Archive -Path "$stage/*" -DestinationPath "dist/$name.zip" -Force
+
+      - name: Package macOS archive
+        if: runner.os == 'macOS'
+        run: |
+          VER="${{ steps.version.outputs.ver }}"
+          SHORT_VER="${VER#v}"
+          NAME="mandrake-${VER}-${{ matrix.name }}"
+          STAGE="dist/${NAME}"
+          APP="${STAGE}/Mandrake.app"
+          mkdir -p "${APP}/Contents/MacOS" "${APP}/Contents/Resources"
+          cp "target/${{ matrix.target }}/release/mandrake" "${APP}/Contents/MacOS/mandrake"
+          chmod +x "${APP}/Contents/MacOS/mandrake"
+          cp "crates/mandrake-client/assets/mandrake.icns" "${APP}/Contents/Resources/mandrake.icns"
+          cat > "${APP}/Contents/Info.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleName</key>
+            <string>Mandrake</string>
+            <key>CFBundleDisplayName</key>
+            <string>Mandrake</string>
+            <key>CFBundleIdentifier</key>
+            <string>io.github.bbeazley.mandrake</string>
+            <key>CFBundleVersion</key>
+            <string>${SHORT_VER}</string>
+            <key>CFBundleShortVersionString</key>
+            <string>${SHORT_VER}</string>
+            <key>CFBundleExecutable</key>
+            <string>mandrake</string>
+            <key>CFBundleIconFile</key>
+            <string>mandrake.icns</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+            <key>NSHighResolutionCapable</key>
+            <true/>
+          </dict>
+          </plist>
+          EOF
+          cp crates/mandrake-client/mandrake.original.toml LICENSE-MIT LICENSE-APACHE THIRD_PARTY_NOTICES.md "${STAGE}/"
+          sed "s/@VERSION@/${VER}/" scripts/dist/README.txt > "${STAGE}/README.txt"
+          (cd "${STAGE}" && zip -rq "../${NAME}.zip" .)
+
+      - name: Package Linux archive
+        if: runner.os == 'Linux'
+        run: |
+          VER="${{ steps.version.outputs.ver }}"
+          NAME="mandrake-${VER}-${{ matrix.name }}"
+          STAGE="dist/stage/mandrake"
+          mkdir -p "${STAGE}"
+          cp "target/${{ matrix.target }}/release/mandrake" "${STAGE}/mandrake"
+          strip "${STAGE}/mandrake"
+          cp crates/mandrake-client/mandrake.original.toml LICENSE-MIT LICENSE-APACHE THIRD_PARTY_NOTICES.md "${STAGE}/"
+          cp scripts/dist/mandrake.sh "${STAGE}/mandrake.sh"
+          chmod 755 "${STAGE}/mandrake.sh"
+          sed "s/@VERSION@/${VER}/" scripts/dist/README.txt > "${STAGE}/README.txt"
+          tar -C dist/stage --owner=0 --group=0 -czf "dist/${NAME}.tar.gz" mandrake
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mandrake-${{ matrix.name }}
+          path: dist/mandrake-*.${{ matrix.ext }}
+
+  publish:
+    name: Publish Draft Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Generate SHA256SUMS.txt
+        working-directory: release-assets
+        run: |
+          sha256sum mandrake-* > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Upload checksums artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: checksums
+          path: release-assets/SHA256SUMS.txt
+
+      - name: Create Draft GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          generate_release_notes: true
+          files: |
+            release-assets/mandrake-*
+            release-assets/SHA256SUMS.txt

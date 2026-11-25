@@ -1,0 +1,37 @@
+# Myth II source port: the "Original" setup (the web page's Original preset), the 1.8.5
+# game's own look: its OpenGL renderer (GL_LINEAR, mip chains; the fog and the sprites as it draws
+# them follow sampling = "linear") and the interface scaled pixel for pixel. Merged over the
+# shipped settings (mandrake --write-default-conf FILE writes them all, with their comments).
+#
+# Copy it to your config folder (~/.config/myth2-sourceport) and start with
+#     mandrake --conf mandrake.original.toml
+# The client writes what it changes (the control bar, Ctrl +/- zoom, the multiplayer name) here.
+# One file for both games: Myth II: Soulblighter by default, The Fallen Lords with --game tfl.
+
+[game]
+# The Fallen Lords' game folder, the one holding tags/*.gor (by default TFL_DATA_DIR, else TFL in
+# a Steam Proton prefix, else Myth_TFL in the current folder), relative to this file's folder.
+# tfl_data = "~/Games/Myth_TFL"
+
+[display]
+ui_filter = "nearest"
+sampling = "linear"
+# The Tarn plugin's "Last Stand at Tarn (Water Demo)" (85tl) and the Three Causeways plugin's maps
+# (85tc, 85tk) are water demos: the enhanced water on them, the game's own on every other map.
+water = "enhanced"
+water_maps = ["85tl", "85tk", "85tc"]
+# The games' own look in both games: Myth II's fog as 1.8.5 draws it (TFL 1.5 has none), no
+# lighting, and in The Fallen Lords TFL 1.5's shadow bitmaps.
+fog = "engine"
+lighting = "off"
+detail_shadows = false
+
+[display.tfl]
+# The Fallen Lords as TFL 1.5 draws it: tick by tick, no hover frame.
+smoothing = false
+hover_frames = false
+
+[interface]
+# The Fallen Lords selects units by Myth II 1.8.5's rules (the shipped behaviour); "tfl" keeps
+# TFL 1.5's: the band adds to the selection, the double click and the flick as TFL 1.5's.
+# selection = "tfl"

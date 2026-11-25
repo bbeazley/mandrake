@@ -1,0 +1,15 @@
+[fog.map.85tl]
+opacity = 0.3
+falloff = 0.2
+patchiness = 0.85
+patch_size = 9.0
+speed = 1.5
+color = [0.78, 0.81, 0.84]
+
+[fog.map.85tn]
+opacity = 0.3
+falloff = 0.2
+patchiness = 0.85
+patch_size = 9.0
+speed = 1.5
+color = [0.78, 0.81, 0.84]

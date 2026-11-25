@@ -1,0 +1,5 @@
+[water.map.85tl]
+dissolved_absorption = [0.02, 0.40, 1.2]
+
+[water.map.85tn]
+dissolved_absorption = [0.02, 0.40, 1.2]

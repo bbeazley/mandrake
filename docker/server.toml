@@ -1,0 +1,13 @@
+data_dir = "/data/myth2"
+plugins_dir = "/data/plugins"
+port = 3453
+name = "Myth II Server"
+films_dir = "/films"
+work_dir = "/tmp/mandrake-server"
+download_url = "http://{host}:8080/plugins/"
+
+[game]
+map = "85gi"
+game_type = 0
+time_limit_minutes = 10
+max_players = 16

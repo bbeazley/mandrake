@@ -1,0 +1,13 @@
+# Myth II 1.8.5 built-in "Left Handed" set (Myth2_64bit table at 0x860380), as an override of
+# the "Right Handed" defaults: only the camera keys differ (keypad instead of WASD).
+[bindings]
+move_forward = "Keypad 8"
+move_backward = "Keypad 5"
+move_left = "Keypad 1"
+move_right = "Keypad 3"
+turn_left = "Keypad 4"
+turn_right = "Keypad 6"
+orbit_left = "Keypad 7"
+orbit_right = "Keypad 9"
+zoom_in = "Keypad Plus"
+zoom_out = "Keypad Minus"

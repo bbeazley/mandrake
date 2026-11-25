@@ -1,0 +1,11 @@
+[package]
+name = "mandrake-tag"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+mandrake-common.workspace = true
+byteorder.workspace = true
+mandrake-math.workspace = true
+serde.workspace = true

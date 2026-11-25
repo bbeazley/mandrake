@@ -1,0 +1,7 @@
+# The compose file's local volumes and settings.
+/.env
+/config/
+/plugins/
+/films/
+/logs/
+/data/

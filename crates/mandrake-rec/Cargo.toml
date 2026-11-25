@@ -1,0 +1,10 @@
+[package]
+name = "mandrake-rec"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+mandrake-common.workspace = true
+byteorder.workspace = true
+serde.workspace = true

@@ -1,0 +1,11 @@
+[package]
+name = "mandrake-smacker"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Smacker (SMK2/SMK4) video and audio decoder for the Myth II cutscenes"
+
+[dependencies]
+
+[dev-dependencies]
+mandrake-common.workspace = true

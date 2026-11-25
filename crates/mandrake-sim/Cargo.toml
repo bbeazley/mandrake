@@ -1,0 +1,21 @@
+[package]
+name = "mandrake-sim"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+autotests = false
+
+[dependencies]
+mandrake-common.workspace = true
+mandrake-math.workspace = true
+mandrake-tag.workspace = true
+mandrake-rec.workspace = true
+tracing.workspace = true
+serde.workspace = true
+
+[[test]]
+name = "all"
+path = "tests/all/main.rs"
+
+[features]
+identity-checks = []

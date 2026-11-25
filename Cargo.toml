@@ -1,0 +1,80 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/mandrake-common",
+    "crates/mandrake-math",
+    "crates/mandrake-tag",
+    "crates/mandrake-rec",
+    "crates/mandrake-sim",
+    "crates/mandrake-tfl-sim",
+    "crates/mandrake-view",
+    "crates/mandrake-render",
+    "crates/mandrake-audio",
+    "crates/mandrake-smacker",
+    "crates/mandrake-session",
+    "crates/mandrake-net",
+    "crates/mandrake-dialogs",
+    "crates/mandrake-client",
+    "crates/mandrake-web",
+    "crates/mandrake-server",
+    "tools/m2-tag-dump",
+    "tools/m2-rec-dump",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+
+[workspace.dependencies]
+anyhow = "1.0"
+thiserror = "2.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+byteorder = "1.5"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+clap = { version = "4.5", features = ["derive"] }
+wgpu = "30.0"
+winit = "0.30"
+image = { version = "0.25", default-features = false, features = ["png"] }
+bytemuck = { version = "1.21", features = ["derive"] }
+toml_edit = { version = "0.25", default-features = false, features = ["parse"] }
+
+mandrake-common = { path = "crates/mandrake-common" }
+mandrake-math = { path = "crates/mandrake-math" }
+mandrake-tag = { path = "crates/mandrake-tag" }
+mandrake-rec = { path = "crates/mandrake-rec" }
+mandrake-sim = { path = "crates/mandrake-sim" }
+mandrake-tfl-sim = { path = "crates/mandrake-tfl-sim" }
+mandrake-view = { path = "crates/mandrake-view" }
+mandrake-render = { path = "crates/mandrake-render" }
+mandrake-audio = { path = "crates/mandrake-audio" }
+mandrake-smacker = { path = "crates/mandrake-smacker" }
+mandrake-session = { path = "crates/mandrake-session" }
+mandrake-net = { path = "crates/mandrake-net" }
+mandrake-dialogs = { path = "crates/mandrake-dialogs" }
+
+[profile.dev]
+incremental = true
+debug = "line-tables-only"
+
+[profile.dev.package.mandrake-sim]
+opt-level = 2
+
+[profile.dev.package.mandrake-tfl-sim]
+opt-level = 2
+
+[profile.dev.package.mandrake-tag]
+opt-level = 2
+
+[profile.dev.package.mandrake-math]
+opt-level = 2
+
+[profile.dev.package.mandrake-rec]
+opt-level = 2
+
+[profile.dev.package.rav1d]
+opt-level = 3
+debug-assertions = false
+overflow-checks = false

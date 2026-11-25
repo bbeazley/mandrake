@@ -1,0 +1,19 @@
+/target/
+**/*.rs.bk
+*.log
+.DS_Store
+/dist/
+pkg/
+node_modules/
+.idea/
+.vscode/
+*.tmp
+*.pid
+__pycache__/
+*.pyc
+# Strays that keep appearing at the top of a checkout: a shell redirect to "0" or "\", rustc's
+# output when run on a lone file, a renderer test's picture.
+/0
+/\\
+/*.rlib
+/myth2_rendered_terrain.png
