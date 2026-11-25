@@ -644,10 +644,10 @@ mod tests {
     #[test]
     fn the_shipped_file_documents_sound_rules_and_sprite_interpolation() {
         use crate::tfl_sound::TflSoundRules;
-        let shipped = crate::conf::DEFAULT_CONF_TOML;
-        assert_eq!(parse_tfl_sound_rules(shipped), Ok(None));
+        let shipped = crate::conf::DEFAULT_CONF_TOML.replace("\r\n", "\n");
+        assert_eq!(parse_tfl_sound_rules(&shipped), Ok(None));
         assert_eq!(
-            parse_tfl_switch(shipped, TFL_SPRITE_INTERPOLATION_KEY),
+            parse_tfl_switch(&shipped, TFL_SPRITE_INTERPOLATION_KEY),
             Ok(None)
         );
         let uncommented = |line: &str| {

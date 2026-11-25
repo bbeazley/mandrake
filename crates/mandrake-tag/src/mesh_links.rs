@@ -719,6 +719,7 @@ mod tests {
         assert_eq!(tags.plugin_search(0).sequence_count(tag(b"##s#")), Some(4));
     }
 
+    #[allow(dead_code)]
     fn snapshot(dir: &Path) -> Vec<(std::path::PathBuf, Vec<u8>, std::time::SystemTime)> {
         let mut seen = Vec::new();
         let mut walk = vec![dir.to_path_buf()];
