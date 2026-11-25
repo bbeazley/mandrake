@@ -532,13 +532,31 @@ pub struct Listener {
 
 impl Listener {
     pub fn bind(addr: SocketAddr) -> io::Result<Listener> {
-        let tcp = TcpListener::bind(addr)?;
-        tcp.set_nonblocking(true)?;
-        let mut at = addr;
-        at.set_port(tcp.local_addr()?.port());
-        let udp = UdpSocket::bind(at)?;
-        udp.set_nonblocking(true)?;
-        Ok(Listener { tcp, udp })
+        let attempts = if addr.port() == 0 { 32 } else { 1 };
+        let mut last_err = None;
+        for _ in 0..attempts {
+            let tcp = TcpListener::bind(addr)?;
+            tcp.set_nonblocking(true)?;
+            let mut at = addr;
+            at.set_port(tcp.local_addr()?.port());
+            match UdpSocket::bind(at) {
+                Ok(udp) => {
+                    udp.set_nonblocking(true)?;
+                    return Ok(Listener { tcp, udp });
+                }
+                Err(e)
+                    if addr.port() == 0
+                        && matches!(
+                            e.kind(),
+                            io::ErrorKind::AddrInUse | io::ErrorKind::PermissionDenied
+                        ) =>
+                {
+                    last_err = Some(e);
+                }
+                Err(e) => return Err(e),
+            }
+        }
+        Err(last_err.unwrap())
     }
 
     pub fn local_addr(&self) -> io::Result<SocketAddr> {

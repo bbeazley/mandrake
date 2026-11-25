@@ -1223,6 +1223,7 @@ mod tests {
         let (mut host, _) = up.accept().unwrap();
         host.set_write_timeout(Some(Duration::from_secs(2)))
             .unwrap();
+        host.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
         let chunk = vec![7u8; 65536];
         let mut sent = 0usize;
         while let Ok(n) = host.write(&chunk) {
@@ -1230,7 +1231,6 @@ mod tests {
             assert!(sent < 64 << 20, "never closed");
         }
         assert!(sent > BUFFER_CAP, "{sent} bytes");
-        host.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
         let mut b = [0u8; 16];
         assert!(
             matches!(host.read(&mut b), Ok(0)),
