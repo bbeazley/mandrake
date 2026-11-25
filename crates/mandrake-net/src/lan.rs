@@ -336,7 +336,10 @@ mod tests {
             _ => unreachable!(),
         };
         let mut browser = Browser::open(target).unwrap();
-        let browser_addr = browser.socket.local_addr().unwrap();
+        let browser_addr = SocketAddrV4::new(
+            Ipv4Addr::LOCALHOST,
+            browser.socket.local_addr().unwrap().port(),
+        );
         let sender = UdpSocket::bind("127.0.0.1:0").unwrap();
         for _ in 0..ANSWERS_PER_POLL {
             sender.send_to(b"noise", browser_addr).unwrap();
