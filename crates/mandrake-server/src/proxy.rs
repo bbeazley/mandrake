@@ -1020,9 +1020,15 @@ mod tests {
         assert!(t0.elapsed() < Duration::from_millis(2500), "{e:#}");
         let e = format!("{e:#}");
         assert!(
-            ["no whole head", "timed out", "temporarily unavailable"]
-                .iter()
-                .any(|w| e.contains(w)),
+            [
+                "no whole head",
+                "timed out",
+                "temporarily unavailable",
+                "period of time",
+                "10060",
+            ]
+            .iter()
+            .any(|w| e.contains(w)),
             "{e}"
         );
         drop(s);
@@ -1101,7 +1107,7 @@ mod tests {
         std::fs::write(base.join("game/tags/small install"), "abc").unwrap();
         let mut c = config("127.0.0.1:3453");
         c.site = ProxyConfig::parse(&format!(
-            "web_root = \"{0}/web\"\ngame_dir = \"{0}/game\"\n",
+            "web_root = '{0}/web'\ngame_dir = '{0}/game'\n",
             base.display()
         ))
         .unwrap()
@@ -1233,7 +1239,16 @@ mod tests {
         assert!(sent > BUFFER_CAP, "{sent} bytes");
         let mut b = [0u8; 16];
         assert!(
-            matches!(host.read(&mut b), Ok(0)),
+            match host.read(&mut b) {
+                Ok(0) => true,
+                Err(e) => matches!(
+                    e.kind(),
+                    io::ErrorKind::ConnectionReset
+                        | io::ErrorKind::ConnectionAborted
+                        | io::ErrorKind::BrokenPipe
+                ),
+                Ok(_) => false,
+            },
             "the proxy closed the host's side"
         );
         drop(ws);
