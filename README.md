@@ -4,9 +4,15 @@
 
 # Mandrake
 
-A modern, cross-platform Rust source port for Bungie's ***Myth II: Soulblighter*** and ***Myth: The Fallen Lords***.
+A modern, cross-platform open-source game engine (written in Rust) for playing Bungie's ***Myth II: Soulblighter*** and ***Myth: The Fallen Lords*** on modern hardware.
 
-Mandrake reads your original game files and runs a deterministic simulation that replays original 1.8.5 films tick-for-tick and interoperates with 1.8.5 multiplayer peers — rendered with `wgpu` (Vulkan, DirectX 12, Metal) and Modern-Retro visual enhancements out of the box.
+Play the full solo campaigns, load your plugins and third-party maps, host or join TCP/IP and LAN multiplayer games (including cross-play with original 1.8.5 clients), and record or watch films — all powered by a modern `wgpu` renderer (Vulkan, DirectX 12, Metal) with optional Modern-Retro visual enhancements.
+
+### Highlights
+- **Full Myth II (1.8.5) & TFL (1.5) playability:** Solo campaigns with veterans, saved games, cutscenes, plugins/third-party maps, and complete original UI/menus.
+- **Multiplayer & 1.8.5 compatibility:** TCP/IP and LAN multiplayer that interoperates with original 1.8.5 peers, plus deterministic film recording and tick-for-tick replay of original films.
+- **Modern graphics & retro authenticity:** Hardware-accelerated rendering via `wgpu` (Vulkan, DirectX 12, Metal) with Modern-Retro defaults (sharp sprites, Lanczos-2 UI scaling, height fog, dynamic lighting, enhanced water, and automatic TFL locomotion sprite interpolation) — or switch to the authentic original 1.8.5 / TFL 1.5 look with one flag.
+- **Portable & cross-platform:** Native builds for Windows (x86_64 & ARM64), macOS (Apple Silicon), and Linux (x86_64, ARM64, and Steam Deck), plus a self-hosted dedicated server and WebGPU browser client.
 
 **[Download the latest release](https://github.com/bbeazley/mandrake/releases/latest)** — prebuilt portable archives for **Windows (x86_64 & ARM64)**, **macOS (Apple Silicon)**, and **Linux (x86_64 & ARM64 / Steam Deck)**.
 
