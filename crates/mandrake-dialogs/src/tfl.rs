@@ -761,6 +761,7 @@ impl TflProgressScreen {
             bar.set_fraction(item, 0);
         }
         let mut stack = DialogStack::tfl();
+        stack.place((CANVAS.0 as i32, CANVAS.1 as i32));
         stack.push(dialog);
         Some(Self {
             res,
