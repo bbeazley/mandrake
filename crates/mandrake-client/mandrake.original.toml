@@ -3,7 +3,7 @@
 # them follow sampling = "linear") and the interface scaled pixel for pixel. Merged over the
 # shipped settings (mandrake --write-default-conf FILE writes them all, with their comments).
 #
-# Copy it to your config folder (~/.config/myth2-sourceport) and start with
+# Place it beside the mandrake executable (or in your OS config folder) and start with
 #     mandrake --conf mandrake.original.toml
 # The client writes what it changes (the control bar, Ctrl +/- zoom, the multiplayer name) here.
 # One file for both games: Myth II: Soulblighter by default, The Fallen Lords with --game tfl.

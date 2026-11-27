@@ -1,10 +1,10 @@
 # Myth II source port settings (Myth II and The Fallen Lords): mandrake.toml, every setting with
 # its shipped value.
 #
-# The client reads mandrake.toml in its config folder ($XDG_CONFIG_HOME/myth2-sourceport, else
-# ~/.config/myth2-sourceport, else on Windows %APPDATA%\myth2-sourceport), or the file
-# --conf FILE names: a bare name (--conf mandrake.modernretro.toml) is looked up in that folder,
-# a path with a folder is used as it is. Keep several files to switch between setups.
+# The client reads mandrake.toml beside the mandrake executable (or beside Mandrake.app on
+# macOS) when writable, else in the OS config folder, or the file --conf FILE names: a bare
+# name (--conf mandrake.modernretro.toml) is looked up in that folder, a path with a folder is
+# used as it is. Keep several files to switch between setups.
 #
 # Your file is merged over this one: list only what you want to change; a table left out keeps
 # the shipped values. Lowest first, what decides a value is: the shipped values, your file, then
@@ -161,8 +161,8 @@ lanczos_sharpen = 0.4
 cutscene_filter = "fsr1"
 
 # Whether a cutscene plays an upscaled HD film of it, when there is one
-# ($XDG_DATA_HOME/myth2-sourceport/cutscenes-hd/<name>.ivf, else ~/.local/share/...) with the
-# .smk's frame count; it keeps the .smk's sound. false plays the .smk. --cutscene-hd wins for a run.
+# (cutscenes-hd/<name>.ivf in the user data folder) with the .smk's frame count; it keeps the
+# .smk's sound. false plays the .smk. --cutscene-hd wins for a run.
 cutscene_hd = true
 
 # The sharpening of "fsr1", in stops from 0 (the sharpest) to 2: each stop halves it.
@@ -439,8 +439,26 @@ softness = 0.5
 
 # Salvation
 [lighting.map.cr01]
+darkness = 0.96
+ambient_color = [0.27, 0.34, 0.47]
+light_intensity = 0.65
+
+# The Summoner
+[lighting.map.19it]
 darkness = 0.95
-ambient_color = [0.25, 0.32, 0.45]
+ambient_color = [0.28, 0.35, 0.5]
+light_intensity = 0.7
+
+# A Murder of Crows: night under a bright full moon, lighter and more silver than Salvation.
+[lighting.map.20sc]
+darkness = 0.95
+ambient_color = [0.36, 0.42, 0.55]
+light_intensity = 0.65
+
+# Through the Ermine
+[lighting.map.11an]
+darkness = 0.95
+ambient_color = [0.36, 0.42, 0.55]
 light_intensity = 0.65
 
 # Tarn (85tl, the Last Stand mission; 85tn, the map) at sunrise: a warm, slightly dimmed ambient
@@ -459,6 +477,12 @@ light_intensity = 0.4
 [lighting.tfl.map.03di]
 darkness = 0.85
 ambient_color = [0.55, 0.65, 0.85]
+
+# TFL, Across the Gjol: an overcast, rainy late afternoon over the marsh.
+[lighting.tfl.map.2mll]
+darkness = 0.8
+ambient_color = [0.76, 0.75, 0.77]
+light_intensity = 0.55
 
 # ---------------------------------------------------------------------------------------------
 # [water]: the enhanced water (--water enhanced), off by default (read at each map's load). An
@@ -587,8 +611,9 @@ shelter = true
 # A stock map paints its water into the colour map, which would show under the clear water as a
 # flat painting. At the load the painted water is repainted as a bed of the map's own dry ground
 # (quilted windows of its gravel, sand or rock; only the map's own colour indices), deeper water
-# darker. Computed once per map (about a second) and cached in ~/.cache/myth2/water-bed. Maps
-# that paint a real bed (Sandy Gimble, Tarn) have no water paint and are left as they are.
+# darker. Computed once per map (about a second) and cached in the client's cache folder
+# (water-bed/). Maps that paint a real bed (Sandy Gimble, Tarn) have no water paint and are
+# left as they are.
 river_bed = true
 
 # --- Wet sand (default on) ---

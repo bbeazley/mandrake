@@ -468,9 +468,27 @@ mod tests {
         assert!(!config.has_map("00tm"));
 
         let layer = config.resolve_layer("cr01", &LightingLayer::default());
-        assert_eq!(layer.darkness, Some(0.95));
-        assert_eq!(layer.ambient_color, Some([0.25, 0.32, 0.45]));
+        assert_eq!(layer.darkness, Some(0.96));
+        assert_eq!(layer.ambient_color, Some([0.27, 0.34, 0.47]));
         assert_eq!(layer.light_intensity, Some(0.65));
+
+        for (tag, darkness, ambient, intensity) in [
+            ("19it", 0.95, [0.28, 0.35, 0.5], 0.7),
+            ("20sc", 0.95, [0.36, 0.42, 0.55], 0.65),
+            ("11an", 0.95, [0.36, 0.42, 0.55], 0.65),
+        ] {
+            assert!(config.has_map(tag), "missing shipped map {tag}");
+            let m = config.resolve_layer(tag, &LightingLayer::default());
+            assert_eq!(m.darkness, Some(darkness), "{tag} darkness");
+            assert_eq!(m.ambient_color, Some(ambient), "{tag} ambient_color");
+            assert_eq!(m.light_intensity, Some(intensity), "{tag} light_intensity");
+        }
+
+        assert!(config.has_map_in(Game::Tfl, "2mll"));
+        let gjol = config.resolve_layer_in(Game::Tfl, "2mll", &LightingLayer::default());
+        assert_eq!(gjol.darkness, Some(0.8));
+        assert_eq!(gjol.ambient_color, Some([0.76, 0.75, 0.77]));
+        assert_eq!(gjol.light_intensity, Some(0.55));
     }
 
     #[test]
@@ -481,11 +499,11 @@ mod tests {
 
         let (amb, enabled) = resolve_ambient(Lighting::On, None, None, "cr01");
         assert!(enabled);
-        assert_eq!(amb, [0.25 * 0.95, 0.32 * 0.95, 0.45 * 0.95]);
+        assert_eq!(amb, [0.27 * 0.96, 0.34 * 0.96, 0.47 * 0.96]);
 
         let (amb, enabled) = resolve_ambient(Lighting::On, Some(0.4), None, "cr01");
         assert!(enabled);
-        assert_eq!(amb, [0.25 * 0.4, 0.32 * 0.4, 0.45 * 0.4]);
+        assert_eq!(amb, [0.27 * 0.4, 0.34 * 0.4, 0.47 * 0.4]);
 
         let (amb, enabled) = resolve_ambient(Lighting::On, None, None, "00tm");
         assert!(!enabled);

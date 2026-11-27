@@ -3,10 +3,11 @@
 # small for it), sprites sharp up close, the lighting and the fog on, and no control bar (its key
 # still shows it). The same file plays Myth: The Fallen Lords (--game tfl) with Myth II's extras:
 # smoothed between ticks, the hover frame, the detail shadows, the fog and the lighting, Myth II's
-# unit selection, and the status bar across the width. Merged over the shipped settings
-# (mandrake --write-default-conf FILE writes them all, with their comments).
+# unit selection, and the status bar across the width. Per-map [fog] and [lighting] defaults
+# are built in and merged automatically; mandrake --write-default-conf FILE writes the full
+# reference.
 #
-# Copy it to your config folder (~/.config/myth2-sourceport) and start with
+# Place it beside the mandrake executable (or in your OS config folder) and start with
 #     mandrake --conf mandrake.modernretro.toml
 #     mandrake --conf mandrake.modernretro.toml --game tfl
 # The client writes what it changes (the control bar, Ctrl +/- zoom, the multiplayer name) here.
