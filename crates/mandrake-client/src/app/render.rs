@@ -133,18 +133,20 @@ impl ClientApp {
         self.update_physics_and_simulation();
         lap(&mut clock, Lap::Sim);
 
-        let (Some(gpu), Some(window_surface::FrameSurface { surface, canvas })) =
-            (&mut self.gpu_state, surface)
+        let (
+            Some(gpu),
+            Some(window_surface::FrameSurface {
+                surface,
+                canvas,
+                config,
+            }),
+        ) = (&mut self.gpu_state, surface)
         else {
             return;
         };
 
-        let Some(frame) = acquire_surface(
-            surface,
-            &gpu.device,
-            &gpu.surface_config,
-            &mut gpu.surface_timeouts,
-        ) else {
+        let Some(frame) = acquire_surface(surface, &gpu.device, config, &mut gpu.surface_timeouts)
+        else {
             return;
         };
 
@@ -433,10 +435,7 @@ impl ClientApp {
                     format: gpu.billboard_renderer.interface_format,
                 },
                 &mut encoder,
-                (
-                    self.ui.dialogs(self.dialog_scale),
-                    self.ui_mode.filter(self.ui_filter).into(),
-                ),
+                (self.ui, self.ui_mode.filter(self.ui_filter).into()),
                 front_end,
             );
         }
@@ -463,8 +462,9 @@ impl ClientApp {
                 self.screenshot_requested = cfg!(not(target_arch = "wasm32"));
             }
         }
+        let shot_source = window_surface::screenshot_texture(canvas, &frame, config.color_space);
         let readback = std::mem::take(&mut self.screenshot_requested)
-            .then(|| Readback::encode(&gpu.device, &mut encoder, &frame.texture));
+            .then(|| Readback::encode(&gpu.device, &mut encoder, shot_source));
         let command_buffer = encoder.finish();
         lap(&mut clock, Lap::Encode);
         let submission = gpu.queue.submit(std::iter::once(command_buffer));

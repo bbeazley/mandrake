@@ -3,7 +3,7 @@ use mandrake_common::game_options;
 use mandrake_session::Text;
 use mandrake_sim::statistics::StatisticsView;
 use mandrake_tag::font::{self, Bitmap32, TextClip, text_flags};
-use mandrake_tag::{Rect, StringListTag, TagLookup};
+use mandrake_tag::{Rect, TagLookup};
 
 use crate::command_bar::{self, PromptTags};
 
@@ -125,8 +125,8 @@ pub fn shown(c: &ScoreClock, keyed: bool) -> Shown {
 
 #[derive(Debug, Clone, Default)]
 pub struct ScoreStrings {
-    pub game_types: Option<StringListTag>,
-    pub end: Option<StringListTag>,
+    pub game_types: Option<Vec<Vec<u8>>>,
+    pub end: Option<Vec<Vec<u8>>>,
     pub map_name: Option<Vec<u8>>,
     pub alternate_level: bool,
 }
@@ -135,14 +135,14 @@ impl ScoreStrings {
     pub fn load(tags: &TagLookup, mesh_strings: Option<FourCC>, alternate_level: bool) -> Self {
         let list = |id| {
             tags.get(FourCC(*b"stli"), id)
-                .and_then(|d| StringListTag::from_bytes(&d).ok())
+                .map(|d| crate::unit_info::string_list(&d))
         };
         Self {
             game_types: list(mandrake_tag::hud::GAME_SCORING_NAMES_ID),
             end: list(END_STRINGS_ID),
             map_name: mesh_strings
                 .and_then(list)
-                .and_then(|l| l.get(0).map(|s| s.as_bytes().to_vec())),
+                .and_then(|l| l.into_iter().next()),
             alternate_level,
         }
     }
@@ -152,10 +152,11 @@ impl ScoreStrings {
     }
 }
 
-fn string(list: &Option<StringListTag>, i: usize) -> Vec<u8> {
+fn string(list: &Option<Vec<Vec<u8>>>, i: usize) -> Vec<u8> {
     list.as_ref()
         .and_then(|l| l.get(i))
-        .map_or_else(Vec::new, |s| s.as_bytes().to_vec())
+        .cloned()
+        .unwrap_or_default()
 }
 
 pub fn time_to_string(ticks: i32) -> Vec<u8> {
@@ -781,6 +782,93 @@ mod tests {
         assert_eq!(
             line_rect(frame, &line(15, false), 130),
             Rect::new(69, 5 + 425, 91, 425 + 425)
+        );
+    }
+
+    #[test]
+    fn score_strings_preserve_mac_roman_bytes() {
+        let mut bytes = Vec::new();
+        let entries: &[(&[u8; 4], &[u8; 4], &[u8])] = &[
+            (b"stli", b"gnen", b"Gonen\xd5s Bridge\r"),
+            (b"stli", b"innn", b"King\xd5s Hill\r"),
+            (
+                b"stli",
+                b"inne",
+                b"End\xd5s 0\rEnd\xd5s 1\rEnd\xd5s 2\rTime\xd5s Up\rPlan\xd5s\r",
+            ),
+        ];
+        mandrake_tag::SBMonoHeader {
+            r#type: 1,
+            version: 1,
+            name: [0; 32],
+            description: [0; 64],
+            entry_tag_count: 0,
+            tag_list_count: entries.len() as u16,
+            checksum: [0; 4],
+            flags: 0,
+            size: 0,
+            header_checksum: [0; 4],
+            padding: [0; 4],
+            signature: mandrake_tag::SBMonoHeader::SIG_MTH2,
+        }
+        .write(&mut bytes)
+        .unwrap();
+        let mut offset =
+            mandrake_tag::SBMonoHeader::SIZE + entries.len() * mandrake_tag::SBTagHeader::SIZE;
+        for (group, id, data) in entries {
+            mandrake_tag::SBTagHeader {
+                identifier: 0,
+                flags: 0,
+                tag_type_idx: 0,
+                name: [0; 32],
+                tag_type: FourCC::new(**group),
+                tag_id: FourCC::new(**id),
+                tag_data_offset: offset as i32,
+                tag_data_size: data.len() as i32,
+                user_data: 0,
+                version: 0,
+                destination: 0,
+                owner_index: 0,
+                signature: mandrake_tag::SBTagHeader::SIGNATURE,
+            }
+            .write(&mut bytes)
+            .unwrap();
+            offset += data.len();
+        }
+        for (_, _, data) in entries {
+            bytes.extend_from_slice(data);
+        }
+        let path = std::env::temp_dir().join(format!(
+            "mandrake-scores-macroman-{}.gor",
+            std::process::id()
+        ));
+        std::fs::write(&path, &bytes).unwrap();
+        let lookup = TagLookup::open(&mandrake_tag::EngineTagFiles {
+            paths: vec![path.clone()],
+            missing_patches: Vec::new(),
+            missing_plugins: Vec::new(),
+        });
+        let _ = std::fs::remove_file(&path);
+
+        let strings = ScoreStrings::load(&lookup, Some(FourCC(*b"gnen")), false);
+        assert_eq!(strings.map_name.as_deref(), Some(&b"Gonen\xd5s Bridge"[..]));
+
+        let solo = ScoreClock {
+            state: 1,
+            game_type: mandrake_sim::engine_rng::SOLO_GAME_TYPE,
+            ..clock()
+        };
+        assert_eq!(header(&solo, &strings).0, b"Gonen\xd5s Bridge");
+
+        let mp = ScoreClock {
+            state: 5,
+            options: 0,
+            game_type: 0,
+            ..clock()
+        };
+        assert_eq!(
+            header(&mp, &strings),
+            (b"King\xd5s Hill".to_vec(), b"Time\xd5s Up".to_vec())
         );
     }
 }

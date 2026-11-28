@@ -45,12 +45,6 @@
 # The interface scale of Ctrl +/- in percent (100, 125, 150, 175, 200, 250, 300, 400), written by
 # the client. ui_scale below (or --ui-scale) wins over it.
 # ui_zoom = 100
-# The dialogs over the game (the pause and Save Game dialogs, the mission objectives, Saved Games,
-# New Game, unit trading; both games') in percent of a 640x480 screen fitted to the window, the
-# same in both games and at every ui_zoom: at 3840x2160 that is 4.5x, so 75 draws them at 3.375x.
-# 25 to 100; never below the dialog's own pixels (1x), and a native interface (ui_scale native,
-# Myth II) keeps them as they are. The bars and the menus keep their size.
-# dialog_scale = 75
 
 # The command line's settings (each as its flag takes it; on/off flags also take true/false):
 # ui_scale = "native"       # --ui-scale: native, a zoom level (1.5 or 150) or 768p
@@ -66,7 +60,8 @@
 # fog = "on"                # --fog: on, off or engine. Myth II by default on, engine with
 #                           # sampling "linear" (Myth II 1.8.5's own fog by depth); The Fallen
 #                           # Lords on (engine is TFL 1.5's: no fog)
-# lighting = "off"          # --lighting: on or off. Myth II off by default, The Fallen Lords on
+# lighting = "on"           # --lighting: on or off. On by default in both games (maps without a
+#                           # [lighting] table stay unlit)
 # detail_shadows = true     # --detail-shadows: The Fallen Lords only: Myth II 1.8.5's detail
 #                           # shadows under its objects (on by default), or false for TFL 1.5's
 #                           # shadow bitmaps. Myth II always draws its detail shadows, as 1.8.5 does
@@ -78,6 +73,9 @@
 # A 10-bit surface where the GPU and the display server offer one (--ten-bit); on by default.
 # false keeps the 8-bit sRGB surface, with the water's dither against its banding.
 # ten_bit = true
+# scRGB HDR surface output on Windows when HDR is active (--hdr): "auto", "on" or "off"
+# (true/false also work); auto by default.
+# hdr = "auto"
 # The frame-rate cap (--fps-cap): "auto" (the monitor's refresh rate less 1: 239 at 240 Hz), a
 # number or "off"; auto by default.
 # fps_cap = "auto"
@@ -440,7 +438,7 @@ softness = 0.5
 # Salvation
 [lighting.map.cr01]
 darkness = 0.96
-ambient_color = [0.27, 0.34, 0.47]
+ambient_color = [0.50, 0.58, 0.74]
 light_intensity = 0.65
 
 # The Summoner

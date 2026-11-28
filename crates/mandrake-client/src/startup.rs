@@ -115,6 +115,11 @@ pub(crate) fn ten_bit_wanted(args: &Args) -> (bool, &'static str) {
     crate::args::ten_bit_wanted(flag, saved)
 }
 
+pub(crate) fn hdr_wanted(args: &Args) -> (crate::args::HdrMode, &'static str) {
+    let (flag, saved) = flag_or_saved(args, "hdr", args.hdr, |h| h);
+    crate::args::hdr_wanted(flag, saved)
+}
+
 pub(crate) fn fps_cap_wanted(args: &Args) -> (crate::app::fps_cap::FpsCap, &'static str) {
     let (flag, saved) = flag_or_saved(args, "fps_cap", args.fps_cap, |c| c);
     crate::app::fps_cap::cap_wanted(flag, saved)

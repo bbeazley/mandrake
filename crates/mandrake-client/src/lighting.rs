@@ -469,7 +469,7 @@ mod tests {
 
         let layer = config.resolve_layer("cr01", &LightingLayer::default());
         assert_eq!(layer.darkness, Some(0.96));
-        assert_eq!(layer.ambient_color, Some([0.27, 0.34, 0.47]));
+        assert_eq!(layer.ambient_color, Some([0.50, 0.58, 0.74]));
         assert_eq!(layer.light_intensity, Some(0.65));
 
         for (tag, darkness, ambient, intensity) in [
@@ -499,11 +499,11 @@ mod tests {
 
         let (amb, enabled) = resolve_ambient(Lighting::On, None, None, "cr01");
         assert!(enabled);
-        assert_eq!(amb, [0.27 * 0.96, 0.34 * 0.96, 0.47 * 0.96]);
+        assert_eq!(amb, [0.50 * 0.96, 0.58 * 0.96, 0.74 * 0.96]);
 
         let (amb, enabled) = resolve_ambient(Lighting::On, Some(0.4), None, "cr01");
         assert!(enabled);
-        assert_eq!(amb, [0.27 * 0.4, 0.34 * 0.4, 0.47 * 0.4]);
+        assert_eq!(amb, [0.50 * 0.4, 0.58 * 0.4, 0.74 * 0.4]);
 
         let (amb, enabled) = resolve_ambient(Lighting::On, None, None, "00tm");
         assert!(!enabled);

@@ -1512,7 +1512,7 @@ impl ClientApp {
     }
 
     pub(crate) fn dialog_ui(&self) -> ui_scale::UiScale {
-        self.ui.dialogs(self.dialog_scale)
+        self.ui
     }
 
     pub(crate) fn event_for_dialog(&self, event: &WindowEvent) -> Option<WindowEvent> {

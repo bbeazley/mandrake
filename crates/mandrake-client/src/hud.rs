@@ -8,7 +8,7 @@ use mandrake_tag::hud::{self, ControlBarEntry, status_item, status_sequence};
 use mandrake_tag::interface::{
     FONT_SCREEN_LOW_RES, FONT_SYSTEM, InterfaceDefinition, STANDARD_INTERFACE_DEFINITION,
 };
-use mandrake_tag::{DialogDefinition, Rect, StringListTag, TagLookup};
+use mandrake_tag::{DialogDefinition, Rect, TagLookup};
 use mandrake_view::interface_bitmap::{self, placement};
 
 use crate::command_bar::{self, ConsolePrompts};
@@ -261,11 +261,19 @@ pub fn fps_text_image(
 
 const SOLO_GAME_TYPE: i16 = mandrake_sim::engine_rng::SOLO_GAME_TYPE;
 
-fn fill(format: &str, values: &[&str]) -> Vec<u8> {
-    values
-        .iter()
-        .fold(format.to_owned(), |s, v| s.replacen("%s", v, 1))
-        .into_bytes()
+fn fill(format: &[u8], values: &[&[u8]]) -> Vec<u8> {
+    let mut out = Vec::with_capacity(format.len());
+    let mut rest = format;
+    for &v in values {
+        let Some(at) = rest.windows(2).position(|w| w == b"%s") else {
+            break;
+        };
+        out.extend_from_slice(&rest[..at]);
+        out.extend_from_slice(v);
+        rest = &rest[at + 2..];
+    }
+    out.extend_from_slice(rest);
+    out
 }
 
 pub fn gameplay_version_string(version: i16) -> String {
@@ -416,11 +424,11 @@ pub struct HudTags {
     pub control_art: Art,
     pub family: FontFamily,
     pub locale: TextLocale,
-    pub difficulty_names: Option<StringListTag>,
+    pub difficulty_names: Option<Vec<Vec<u8>>>,
     pub experience_art: Option<Art>,
     pub prompts: Option<command_bar::PromptTags>,
     pub fps_family: Option<FontFamily>,
-    pub chat_captions: Option<StringListTag>,
+    pub chat_captions: Option<Vec<Vec<u8>>>,
     pub alliance_strings: Vec<Vec<u8>>,
     pub key_names: crate::key_bindings::KeyNames,
     status_caption_color: RgbColor,
@@ -459,13 +467,13 @@ impl HudTags {
             locale,
             difficulty_names: tags
                 .get(FourCC(*b"stli"), hud::DIFFICULTY_NAMES_ID)
-                .and_then(|d| StringListTag::from_bytes(&d).ok()),
+                .map(|d| string_list(&d)),
             experience_art: load_art(&tags, hud::EXPERIENCE_ICONS_ID),
             prompts,
             fps_family,
             chat_captions: tags
                 .get(FourCC(*b"stli"), CHAT_CAPTIONS_ID)
-                .and_then(|d| StringListTag::from_bytes(&d).ok()),
+                .map(|d| string_list(&d)),
             alliance_strings: tags
                 .get(FourCC(*b"stli"), crate::console::ALLIANCE_STRINGS_ID)
                 .map(|d| crate::unit_info::string_list(&d))
@@ -496,22 +504,24 @@ impl HudTags {
     }
 
     pub fn title(&self, mesh_strings: Option<FourCC>, game_type: i16, difficulty: i16) -> Vec<u8> {
-        let name = self.map_name(mesh_strings).unwrap_or_default();
+        let name = self.map_name_bytes(mesh_strings).unwrap_or_default();
         let d = self
             .difficulty_names
-            .as_ref()
+            .as_deref()
             .and_then(|s| s.get(difficulty.max(0) as usize))
-            .unwrap_or("");
+            .map_or(&[][..], Vec::as_slice);
         if game_type == SOLO_GAME_TYPE {
-            return fill(hud::STATUS_BAR_TITLE_FORMAT, &[&name, d]);
+            return fill(hud::STATUS_BAR_TITLE_FORMAT.as_bytes(), &[&name, d]);
         }
         let scoring = self
             .tags
             .get(FourCC(*b"stli"), hud::GAME_SCORING_NAMES_ID)
-            .and_then(|d| StringListTag::from_bytes(&d).ok())
-            .and_then(|s| s.get(game_type.max(0) as usize).map(str::to_owned))
+            .and_then(|d| string_list(&d).into_iter().nth(game_type.max(0) as usize))
             .unwrap_or_default();
-        fill(hud::STATUS_BAR_SCORED_TITLE_FORMAT, &[&name, &scoring, d])
+        fill(
+            hud::STATUS_BAR_SCORED_TITLE_FORMAT.as_bytes(),
+            &[&name, &scoring, d],
+        )
     }
 
     pub fn rules(&self, mesh_strings: Option<FourCC>, game_type: i16) -> Vec<u8> {
@@ -521,16 +531,19 @@ impl HudTags {
             (Some(GAME_RULES_ID), game_type.max(0) as usize)
         };
         list.and_then(|id| self.tags.get(FourCC(*b"stli"), id))
-            .and_then(|d| StringListTag::from_bytes(&d).ok())
-            .and_then(|s| s.get(index).map(|t| t.as_bytes().to_vec()))
+            .and_then(|d| string_list(&d).into_iter().nth(index))
             .unwrap_or_default()
     }
 
-    pub fn map_name(&self, mesh_strings: Option<FourCC>) -> Option<String> {
+    fn map_name_bytes(&self, mesh_strings: Option<FourCC>) -> Option<Vec<u8>> {
         mesh_strings
             .and_then(|id| self.tags.get(FourCC(*b"stli"), id))
-            .and_then(|d| StringListTag::from_bytes(&d).ok())
-            .and_then(|s| s.get(0).map(str::to_owned))
+            .and_then(|d| string_list(&d).into_iter().next())
+    }
+
+    pub fn map_name(&self, mesh_strings: Option<FourCC>) -> Option<String> {
+        self.map_name_bytes(mesh_strings)
+            .map(|b| mandrake_common::mac_roman::decode(&b))
     }
 }
 
@@ -805,7 +818,7 @@ impl Hud {
                     && self.bar_teams.chat_yells()
                     && let Some(yell) = t.chat_captions.as_ref().and_then(|l| l.get(1))
                 {
-                    caption = yell.as_bytes().to_vec();
+                    caption = yell.clone();
                 }
                 let enabled = match e.kind {
                     1 => self.bar_teams.chat_enabled(),
@@ -1105,7 +1118,8 @@ impl Hud {
     }
 
     pub fn print_game_sound_line(&mut self, line: &str, now: i32) {
-        self.console_lines.cputs(-1, line.as_bytes(), now);
+        let encoded = mandrake_common::mac_roman::encode(line);
+        self.console_lines.cputs(-1, &encoded, now);
     }
 
     pub fn update_console(&mut self, now: i32) {
@@ -1158,9 +1172,9 @@ impl Hud {
                     .lookup()
                     .get(mandrake_common::FourCC(*b"stli"), id)
             })
-            .and_then(|d| StringListTag::from_bytes(&d).ok())
-            .map(|l| {
-                let get = |i| l.get(i).unwrap_or("").as_bytes().to_vec();
+            .map(|d| {
+                let l = string_list(&d);
+                let get = |i| l.get(i).cloned().unwrap_or_default();
                 (get(0), get(1))
             });
         let pair = own.or_else(|| {
@@ -2121,5 +2135,23 @@ mod tests {
             "over the console"
         );
         assert!(FPS_LAYER < OverlayLayer::Dialog, "under the bars");
+    }
+
+    #[test]
+    fn fill_preserves_mac_roman_bytes() {
+        assert_eq!(
+            fill(
+                hud::STATUS_BAR_TITLE_FORMAT.as_bytes(),
+                &[b"Gonen\xd5s Bridge", b"Heroic"],
+            ),
+            b"|bGonen\xd5s Bridge|p |i(Heroic)|p"
+        );
+        assert_eq!(
+            fill(
+                hud::STATUS_BAR_SCORED_TITLE_FORMAT.as_bytes(),
+                &[b"Gonen\xd5s Bridge", b"King\xd5s Hill", b"Heroic"],
+            ),
+            b"|bGonen\xd5s Bridge|p King\xd5s Hill |i(Heroic)|p"
+        );
     }
 }

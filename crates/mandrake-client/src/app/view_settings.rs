@@ -12,7 +12,6 @@ pub(crate) struct ViewSettings {
     pub(crate) water_maps: Vec<String>,
     pub(crate) detail_textures: bool,
     pub(crate) translucent_bars: bool,
-    pub(crate) dialog_scale: u16,
     pub(crate) smoothing: bool,
     pub(crate) sprite_interpolation: bool,
     pub(crate) hover_frames: bool,
@@ -47,7 +46,6 @@ impl ViewSettings {
             water_maps: a.water_maps.clone(),
             detail_textures: crate::startup::detail_textures_wanted(a),
             translucent_bars: a.translucent_bars,
-            dialog_scale: crate::settings::dialog_scale_setting(),
             smoothing: tfl_switch(crate::settings::load_tfl_smoothing, "TFL is drawn smoothed")
                 .unwrap_or(true),
             sprite_interpolation: crate::sprite_interp::start_state(

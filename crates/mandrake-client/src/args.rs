@@ -65,9 +65,17 @@ pub(crate) enum TenBit {
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, clap::ValueEnum)]
-pub(crate) enum Lighting {
-    On,
+pub(crate) enum HdrMode {
     #[default]
+    Auto,
+    On,
+    Off,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, clap::ValueEnum)]
+pub(crate) enum Lighting {
+    #[default]
+    On,
     Off,
 }
 
@@ -689,8 +697,8 @@ pub struct Args {
     #[arg(
         long,
         value_enum,
-        help = "Real-time lighting, in either game: on or off. Without this option: off in Myth \
-                II, on in The Fallen Lords"
+        help = "Real-time lighting, in either game: on (the default; maps without a [lighting] \
+                table stay unlit) or off"
     )]
     pub(crate) lighting: Option<Lighting>,
 
@@ -812,6 +820,16 @@ pub struct Args {
                 browser is always 8-bit"
     )]
     pub(crate) ten_bit: Option<TenBit>,
+
+    #[arg(
+        long,
+        value_enum,
+        help = "Output an scRGB HDR surface (Rgba16Float, pure Gamma 2.2) when Windows HDR is \
+                active: auto (follow the monitor's Windows HDR state), on (force HDR where \
+                offered), or off (always SDR). Without this option: hdr in the client settings \
+                file, else auto. Ignored on headless runs and in the browser"
+    )]
+    pub(crate) hdr: Option<HdrMode>,
 
     #[arg(
         long,
@@ -1281,6 +1299,14 @@ pub(crate) fn ten_bit_wanted(flag: Option<TenBit>, saved: Option<bool>) -> (bool
     }
 }
 
+pub(crate) fn hdr_wanted(flag: Option<HdrMode>, saved: Option<HdrMode>) -> (HdrMode, &'static str) {
+    match (flag, saved) {
+        (Some(flag), _) => (flag, "--hdr"),
+        (None, Some(mode)) => (mode, "the settings file"),
+        (None, None) => (HdrMode::Auto, "the default"),
+    }
+}
+
 pub(crate) fn session_error(a: &Args) -> Option<&'static str> {
     (a.session && a.film_report.is_some() && a.replay.is_none())
         .then_some("--session: --film-report needs --replay, a film")
@@ -1392,6 +1418,24 @@ mod fog_tests {
             Some(SelectionChoice::Tfl)
         );
         assert!(selection(&["--selection", "tfl15"]).is_err());
+        let hdr = |args: &[&str]| {
+            Args::try_parse_from(std::iter::once("mandrake").chain(args.iter().copied()))
+                .map(|a| a.hdr)
+        };
+        assert_eq!(hdr(&[]).unwrap(), None);
+        assert_eq!(hdr(&["--hdr", "auto"]).unwrap(), Some(HdrMode::Auto));
+        assert_eq!(hdr(&["--hdr", "on"]).unwrap(), Some(HdrMode::On));
+        assert_eq!(hdr(&["--hdr", "off"]).unwrap(), Some(HdrMode::Off));
+        assert!(hdr(&["--hdr", "sdr"]).is_err());
+        assert_eq!(hdr_wanted(None, None), (HdrMode::Auto, "the default"));
+        assert_eq!(
+            hdr_wanted(None, Some(HdrMode::Off)),
+            (HdrMode::Off, "the settings file")
+        );
+        assert_eq!(
+            hdr_wanted(Some(HdrMode::On), Some(HdrMode::Off)),
+            (HdrMode::On, "--hdr")
+        );
     }
 
     #[test]
@@ -1659,6 +1703,7 @@ mod fog_tests {
     fn lighting_args_default_and_flags() {
         let a = Args::try_parse_from(["mandrake"]).unwrap();
         assert_eq!(a.lighting, None);
+        assert_eq!(a.lighting.unwrap_or_default(), Lighting::On);
         assert_eq!(a.lighting_darkness, None);
         assert_eq!(a.lighting_ambient_color, None);
         assert_eq!(a.lighting_light_intensity, None);

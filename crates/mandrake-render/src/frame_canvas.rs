@@ -1,7 +1,42 @@
+use wgpu::util::DeviceExt;
+
 pub const CANVAS_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba16Float;
 
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+struct PresentParams {
+    sdr_white_scale: f32,
+    hdr_scrgb: u32,
+    _pad: [u32; 2],
+}
+
+impl PresentParams {
+    fn from_hdr(hdr_sdr_white: Option<f32>) -> Self {
+        match hdr_sdr_white {
+            Some(sdr_white_scale) => Self {
+                sdr_white_scale,
+                hdr_scrgb: 1,
+                _pad: [0; 2],
+            },
+            None => Self {
+                sdr_white_scale: 1.0,
+                hdr_scrgb: 0,
+                _pad: [0; 2],
+            },
+        }
+    }
+}
+
 const SHADER: &str = r#"
+struct PresentParams {
+    sdr_white_scale: f32,
+    hdr_scrgb: u32,
+    _pad0: u32,
+    _pad1: u32,
+};
+
 @group(0) @binding(0) var canvas: texture_2d<f32>;
+@group(0) @binding(1) var<uniform> params: PresentParams;
 
 @vertex
 fn vs_main(@builtin(vertex_index) i: u32) -> @builtin(position) vec4<f32> {
@@ -9,17 +44,19 @@ fn vs_main(@builtin(vertex_index) i: u32) -> @builtin(position) vec4<f32> {
     return vec4<f32>(p * 2.0 - vec2<f32>(1.0), 0.0, 1.0);
 }
 
-// The canvas's display values, pixel for pixel; the surface rounds them to its 10 bits. Opaque,
-// as the window is.
 @fragment
 fn fs_main(@builtin(position) at: vec4<f32>) -> @location(0) vec4<f32> {
-    let c = textureLoad(canvas, vec2<i32>(at.xy), 0).rgb;
-    return vec4<f32>(clamp(c, vec3<f32>(0.0), vec3<f32>(1.0)), 1.0);
+    let c = clamp(textureLoad(canvas, vec2<i32>(at.xy), 0).rgb, vec3<f32>(0.0), vec3<f32>(1.0));
+    if (params.hdr_scrgb != 0u) {
+        return vec4<f32>(pow(c, vec3<f32>(2.2)) * params.sdr_white_scale, 1.0);
+    }
+    return vec4<f32>(c, 1.0);
 }
 "#;
 
 pub struct FrameCanvas {
     texture: wgpu::Texture,
+    params_buffer: wgpu::Buffer,
     bind_group: wgpu::BindGroup,
     layout: wgpu::BindGroupLayout,
     pipeline: wgpu::RenderPipeline,
@@ -30,19 +67,34 @@ impl FrameCanvas {
         device: &wgpu::Device,
         surface_format: wgpu::TextureFormat,
         size: (u32, u32),
+        hdr_sdr_white: Option<f32>,
     ) -> Self {
         let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("Frame Canvas Layout"),
-            entries: &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                ty: wgpu::BindingType::Texture {
-                    sample_type: wgpu::TextureSampleType::Float { filterable: false },
-                    view_dimension: wgpu::TextureViewDimension::D2,
-                    multisampled: false,
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Float { filterable: false },
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
                 },
-                count: None,
-            }],
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: wgpu::BufferSize::new(
+                            std::mem::size_of::<PresentParams>() as u64,
+                        ),
+                    },
+                    count: None,
+                },
+            ],
         });
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Frame Canvas Shader"),
@@ -78,9 +130,16 @@ impl FrameCanvas {
             multiview_mask: None,
             cache: None,
         });
-        let (texture, bind_group) = Self::target(device, &layout, size);
+        let params = PresentParams::from_hdr(hdr_sdr_white);
+        let params_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Frame Canvas Params"),
+            contents: bytemuck::bytes_of(&params),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+        let (texture, bind_group) = Self::target(device, &layout, &params_buffer, size);
         Self {
             texture,
+            params_buffer,
             bind_group,
             layout,
             pipeline,
@@ -90,6 +149,7 @@ impl FrameCanvas {
     fn target(
         device: &wgpu::Device,
         layout: &wgpu::BindGroupLayout,
+        params_buffer: &wgpu::Buffer,
         (width, height): (u32, u32),
     ) -> (wgpu::Texture, wgpu::BindGroup) {
         let texture = device.create_texture(&wgpu::TextureDescriptor {
@@ -112,17 +172,30 @@ impl FrameCanvas {
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Frame Canvas Bind Group"),
             layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: wgpu::BindingResource::TextureView(&view),
-            }],
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: params_buffer.as_entire_binding(),
+                },
+            ],
         });
         (texture, bind_group)
     }
 
+    /// Updates the scRGB HDR decode scale, or disables it when `None`.
+    pub fn set_hdr(&self, queue: &wgpu::Queue, sdr_white_scale: Option<f32>) {
+        let params = PresentParams::from_hdr(sdr_white_scale);
+        queue.write_buffer(&self.params_buffer, 0, bytemuck::bytes_of(&params));
+    }
+
     pub fn resize(&mut self, device: &wgpu::Device, size: (u32, u32)) {
         if (self.texture.width(), self.texture.height()) != (size.0.max(1), size.1.max(1)) {
-            (self.texture, self.bind_group) = Self::target(device, &self.layout, size);
+            (self.texture, self.bind_group) =
+                Self::target(device, &self.layout, &self.params_buffer, size);
         }
     }
 

@@ -5,7 +5,7 @@ use mandrake_tag::font::{self, Bitmap32, FontFamily, RgbColor, TextClip, TextLoc
 use mandrake_tag::interface::{
     COLOR_CONSOLE_TEXT, FONT_SCREEN_HIGH_RES, FONT_SCREEN_LOW_RES, InterfaceDefinition,
 };
-use mandrake_tag::{CollectionTag, InterfaceColorTable, Rect, StringListTag, TagLookup};
+use mandrake_tag::{CollectionTag, InterfaceColorTable, Rect, TagLookup};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BarAction {
@@ -160,8 +160,8 @@ pub struct PromptTags {
     pub family: FontFamily,
     pub locale: TextLocale,
     pub color: RgbColor,
-    pub selection_strings: Option<StringListTag>,
-    pub formation_names: Option<StringListTag>,
+    pub selection_strings: Option<Vec<Vec<u8>>>,
+    pub formation_names: Option<Vec<Vec<u8>>>,
 }
 
 impl PromptTags {
@@ -190,7 +190,7 @@ impl PromptTags {
         let c = colors.color(COLOR_CONSOLE_TEXT);
         let list = |id| {
             tags.get(fc(b"stli"), id)
-                .and_then(|d| StringListTag::from_bytes(&d).ok())
+                .map(|d| crate::unit_info::string_list(&d))
         };
         Some(Self {
             family,
@@ -206,12 +206,11 @@ impl PromptTags {
     }
 
     pub fn formation_prompts(&self, formation: i16) -> (Vec<u8>, Vec<u8>) {
-        let get = |l: &Option<StringListTag>, i: usize| {
+        let get = |l: &Option<Vec<Vec<u8>>>, i: usize| {
             l.as_ref()
                 .and_then(|l| l.get(i))
-                .unwrap_or("")
-                .as_bytes()
-                .to_vec()
+                .cloned()
+                .unwrap_or_default()
         };
         (
             get(&self.selection_strings, FORMATION_MODE_STRING),
@@ -236,9 +235,8 @@ impl PromptTags {
             self.selection_strings
                 .as_ref()
                 .and_then(|l| l.get(i))
-                .unwrap_or("")
-                .as_bytes()
-                .to_vec()
+                .cloned()
+                .unwrap_or_default()
         };
         (get(pair.0), get(pair.1))
     }

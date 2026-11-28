@@ -385,5 +385,33 @@ fn the_window_keys_are_preset_keys() {
     crate::settings::save_ui_zoom(&path, 200).unwrap();
     let kept = parse_args(words(&["--conf", conf])).unwrap();
     assert_eq!(kept.vsync, Some(Vsync::On));
+
+    use crate::args::HdrMode;
+    assert_eq!(
+        crate::startup::hdr_wanted(&none),
+        (HdrMode::Auto, "the default")
+    );
+    for (text, mode) in [
+        ("\"auto\"", HdrMode::Auto),
+        ("\"on\"", HdrMode::On),
+        ("\"off\"", HdrMode::Off),
+        ("true", HdrMode::On),
+        ("false", HdrMode::Off),
+    ] {
+        let a = read(&format!("[display]\nhdr = {text}\n"), &[]);
+        assert_eq!(
+            crate::startup::hdr_wanted(&a),
+            (mode, "the settings file"),
+            "{text}"
+        );
+    }
+    let hdr_flag = read("[display]\nhdr = \"off\"\n", &["--hdr", "on"]);
+    assert_eq!(
+        crate::startup::hdr_wanted(&hdr_flag),
+        (HdrMode::On, "--hdr")
+    );
+    let hdr_bad = read("[display]\nhdr = \"sdr\"\nfog = \"off\"\n", &[]);
+    assert_eq!(hdr_bad.hdr, None);
+    assert_eq!(hdr_bad.fog, Some(crate::args::Fog::Off));
     std::fs::remove_dir_all(&dir).unwrap();
 }

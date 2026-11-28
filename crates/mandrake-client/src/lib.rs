@@ -108,6 +108,7 @@ mod team_colours;
 mod ui_scale;
 mod unit_anim;
 mod unit_info;
+mod win_hdr;
 mod window_surface;
 
 #[cfg(target_arch = "wasm32")]

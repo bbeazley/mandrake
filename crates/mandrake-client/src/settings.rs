@@ -7,7 +7,6 @@ const TFL_SPRITE_INTERPOLATION_KEY: &str = "sprite_interpolation";
 const TFL_SOUND_RULES_KEY: &str = "sound_rules";
 const ALLOW_DOWNLOADS_KEY: &str = "allow_downloads";
 const DOWNLOAD_CAP_KEY: &str = "plugin_download_max_mb";
-const DIALOG_SCALE_KEY: &str = "dialog_scale";
 
 const DISPLAY_TABLE: &str = "display";
 const SOUND_TABLE: &str = "sound";
@@ -74,37 +73,6 @@ fn load_with<T>(
 
 pub fn load_ui_zoom(path: &Path) -> Result<Option<u16>, String> {
     load_with(path, parse_ui_zoom)
-}
-
-pub fn parse_dialog_scale(text: &str) -> Result<Option<u16>, String> {
-    let doc = parsed(text)?;
-    let Some(item) = display_value(&doc, DIALOG_SCALE_KEY) else {
-        return Ok(None);
-    };
-    let range = crate::ui_scale::DIALOG_SCALE_RANGE;
-    item.as_integer()
-        .and_then(|v| u16::try_from(v).ok())
-        .filter(|v| range.contains(v))
-        .map(Some)
-        .ok_or_else(|| {
-            format!(
-                "{DIALOG_SCALE_KEY} must be a percent from {} to {}",
-                range.start(),
-                range.end()
-            )
-        })
-}
-
-pub fn dialog_scale_setting() -> u16 {
-    let default = crate::ui_scale::DIALOG_SCALE_DEFAULT;
-    user_settings_path()
-        .and_then(|path| {
-            load_with(&path, parse_dialog_scale).unwrap_or_else(|e| {
-                tracing::warn!("settings: {}: {e}; dialogs at {default}%", path.display());
-                None
-            })
-        })
-        .unwrap_or(default)
 }
 
 fn parse_sound_volume(text: &str) -> Result<Option<f32>, String> {
@@ -531,31 +499,13 @@ mod tests {
     }
 
     #[test]
-    fn parses_dialog_scale() {
-        assert_eq!(parse_dialog_scale(""), Ok(None));
-        assert_eq!(parse_dialog_scale("[display]\nui_zoom = 200\n"), Ok(None));
-        assert_eq!(
-            parse_dialog_scale("[display]\ndialog_scale = 75\n"),
-            Ok(Some(75))
-        );
-        assert_eq!(
-            parse_dialog_scale("[display]\ndialog_scale = 100\n"),
-            Ok(Some(100))
-        );
-        for bad in ["0", "10", "101", "-75", "\"75\"", "0.75"] {
-            assert!(
-                parse_dialog_scale(&format!("[display]\ndialog_scale = {bad}\n")).is_err(),
-                "{bad}"
-            );
-        }
-        assert!(crate::conf::DEFAULT_CONF_TOML.contains("# dialog_scale = 75"));
-        assert_eq!(parse_dialog_scale(crate::conf::DEFAULT_CONF_TOML), Ok(None));
-    }
-
-    #[test]
     fn parses_ui_zoom() {
         assert_eq!(parse_ui_zoom(""), Ok(None));
         assert_eq!(parse_ui_zoom("[display]\nother = 1\n"), Ok(None));
+        assert_eq!(
+            parse_ui_zoom("[display]\ndialog_scale = 75\nui_zoom = 150\n"),
+            Ok(Some(150))
+        );
         assert_eq!(parse_ui_zoom("[display]\nui_zoom = 150\n"), Ok(Some(150)));
         assert_eq!(parse_ui_zoom("[display]\nui_zoom = 130\n"), Ok(Some(130)));
         assert!(parse_ui_zoom("[display]\nui_zoom = 90\n").is_err());

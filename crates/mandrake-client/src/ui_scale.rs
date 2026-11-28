@@ -178,33 +178,17 @@ pub fn with_world_sampling(
     }
 }
 
-pub const DIALOG_SCALE_DEFAULT: u16 = 75;
-
-pub const DIALOG_CANVAS: (u32, u32) = ZOOM_REFERENCE;
-
-pub const DIALOG_SCALE_RANGE: std::ops::RangeInclusive<u16> = 25..=100;
-
-pub fn dialog_factor(base: f64, percent: u16) -> f64 {
-    if base <= 1.0 {
-        return base;
-    }
-    (base * f64::from(percent) / 100.0).clamp(1.0, base)
-}
-
-pub fn dialog_fit(window: (u32, u32), canvas: (u32, u32), percent: u16) -> CanvasFit {
-    let fit = CanvasFit::new(window, canvas);
-    let factor = dialog_factor(fit.factor, percent);
-    if factor == fit.factor {
-        return fit;
-    }
+pub fn dialog_fit(ui: UiScale, canvas: (u32, u32)) -> CanvasFit {
+    let max_fit = CanvasFit::new(ui.window, canvas);
+    let factor = ui.factor.min(max_fit.factor);
     let size = (
         (f64::from(canvas.0.max(1)) * factor).round() as i32,
         (f64::from(canvas.1.max(1)) * factor).round() as i32,
     );
     CanvasFit {
         origin: (
-            (window.0 as i32 - size.0) / 2,
-            (window.1 as i32 - size.1) / 2,
+            (ui.window.0 as i32 - size.0) / 2,
+            (ui.window.1 as i32 - size.1) / 2,
         ),
         factor,
         size,
@@ -294,24 +278,6 @@ impl UiScale {
             (f64::from(x) / sx).floor() as i32,
             (f64::from(y) / sy).floor() as i32,
         )
-    }
-
-    pub fn dialogs(&self, percent: u16) -> Self {
-        if !self.is_scaled() {
-            return *self;
-        }
-        let fit = CanvasFit::new(self.window, DIALOG_CANVAS).factor;
-        let factor = dialog_factor(fit, percent);
-        if factor <= 1.0 {
-            return Self::native(self.window);
-        }
-        let side = |v: u32| (f64::from(v) / factor).round().max(1.0) as u32;
-        Self {
-            window: self.window,
-            logical: (side(self.window.0), side(self.window.1)),
-            factor,
-            zoom: None,
-        }
     }
 
     pub fn view_bars(&self, bars: (i32, i32)) -> (i32, i32) {
@@ -503,48 +469,54 @@ mod tests {
     }
 
     #[test]
-    fn dialog_screens_are_a_share_of_the_windows_fit() {
-        let zoom = |pct, w, h| UiScale::new(UiScaleMode::Zoom(pct), w, h);
-        for pct in [150, 200, 250, 300] {
-            let d = zoom(pct, 3840, 2160).dialogs(75);
-            assert_eq!((d.logical, d.factor, d.zoom), ((1138, 640), 3.375, None));
-            assert!(d.is_scaled());
-            assert_eq!(d.factor, dialog_fit((3840, 2160), DIALOG_CANVAS, 75).factor);
-            let d = zoom(pct, 2560, 1440).dialogs(75);
-            assert_eq!((d.logical, d.factor), ((1138, 640), 2.25));
-        }
-        let d = zoom(200, 3840, 2160).dialogs(100);
-        assert_eq!((d.logical, d.factor), ((853, 480), 4.5));
-        assert_eq!(d.to_logical(3839.0, 2159.0), (852, 479));
-        let lines = UiScale::new(UiScaleMode::Lines768, 3840, 2160).dialogs(75);
-        assert_eq!((lines.logical, lines.factor), ((1138, 640), 3.375));
-        let native = UiScale::new(UiScaleMode::Native, 3840, 2160);
-        assert_eq!(native.dialogs(75), native);
-        let small = zoom(125, 800, 600);
-        assert_eq!(
-            small.dialogs(75),
-            UiScale::new(UiScaleMode::Native, 800, 600)
-        );
-        assert_eq!(dialog_factor(2.0, 75), 1.5);
-        assert_eq!(dialog_factor(1.2, 75), 1.0);
-        assert_eq!(dialog_factor(0.8, 75), 0.8, "a fit below 1x isn't enlarged");
-    }
-
-    #[test]
-    fn the_quit_dialogs_fit_is_a_share_of_the_windows() {
+    fn dialog_fit_follows_ui_scale_and_clamps_to_window() {
         let canvas = (640, 480);
-        let before = dialog_fit((3840, 2160), canvas, 100);
-        assert_eq!((before.factor, before.size), (4.5, (2880, 2160)));
-        let after = dialog_fit((3840, 2160), canvas, 75);
+
+        let native = UiScale::new(UiScaleMode::Native, 1920, 1080);
+        let fit = dialog_fit(native, canvas);
         assert_eq!(
-            (after.factor, after.size, after.origin),
-            (3.375, (2160, 1620), (840, 270))
+            (fit.factor, fit.size, fit.origin),
+            (1.0, (640, 480), (640, 300))
         );
-        assert_eq!(after.size.0 * 4, before.size.0 * 3);
-        assert_eq!(after.to_canvas(1920, 1080), (320, 240));
-        assert_eq!(before.to_canvas(1920, 1080), (320, 240));
-        assert_eq!(dialog_fit((800, 600), canvas, 75).factor, 1.0);
-        assert_eq!(dialog_fit((320, 240), canvas, 75).factor, 0.5);
+        assert_eq!(fit.to_canvas(960, 540), (320, 240));
+
+        let zoom150 = UiScale::new(UiScaleMode::Zoom(150), 1920, 1080);
+        let fit = dialog_fit(zoom150, canvas);
+        assert_eq!(
+            (fit.factor, fit.size, fit.origin),
+            (1.5, (960, 720), (480, 180))
+        );
+        assert_eq!(fit.to_canvas(960, 540), (320, 240));
+
+        let zoom200 = UiScale::new(UiScaleMode::Zoom(200), 3840, 2160);
+        let fit = dialog_fit(zoom200, canvas);
+        assert_eq!(
+            (fit.factor, fit.size, fit.origin),
+            (2.0, (1280, 960), (1280, 600))
+        );
+        assert_eq!(fit.to_canvas(1920, 1080), (320, 240));
+
+        let lines = UiScale::new(UiScaleMode::Lines768, 3840, 2160);
+        let fit = dialog_fit(lines, canvas);
+        assert_eq!(
+            (fit.factor, fit.size, fit.origin),
+            (2.8125, (1800, 1350), (1020, 405))
+        );
+        assert_eq!(fit.to_canvas(1920, 1080), (320, 240));
+
+        let tiny = UiScale::new(UiScaleMode::Native, 320, 240);
+        let fit = dialog_fit(tiny, canvas);
+        assert_eq!(
+            (fit.factor, fit.size, fit.origin),
+            (0.5, (320, 240), (0, 0))
+        );
+
+        let narrow_tall = UiScale::new(UiScaleMode::Lines768, 640, 960);
+        let fit = dialog_fit(narrow_tall, canvas);
+        assert_eq!(
+            (fit.factor, fit.size, fit.origin),
+            (1.0, (640, 480), (0, 240))
+        );
     }
 
     #[test]

@@ -145,7 +145,6 @@ struct Gpu<'a> {
     ui: UiScale,
     ui_filter: InterfaceFilter,
     menu_filter: InterfaceFilter,
-    dialog_scale: u16,
 }
 
 struct GameView {
@@ -1872,20 +1871,24 @@ impl TflApp {
         }
     }
 
+    fn current_ui(&self) -> UiScale {
+        self.ui.unwrap_or_else(|| {
+            UiScale::new(
+                crate::ui_scale::UiScaleMode::Native,
+                self.size.0,
+                self.size.1,
+            )
+        })
+    }
+
     fn bar_mouse(&mut self) -> Option<BarMouse<'_>> {
+        let ui = self.current_ui();
         let (Some(game), Some((x, y))) = (self.game.as_mut(), self.mouse) else {
             return None;
         };
         if game.modal() || game.hud.is_none() {
             return None;
         }
-        let ui = self.ui.unwrap_or_else(|| {
-            UiScale::new(
-                crate::ui_scale::UiScaleMode::Native,
-                self.size.0,
-                self.size.1,
-            )
-        });
         let (lx, ly) = ui.to_logical(x as f32, y as f32);
         let logical = (ui.logical.0 as i32, ui.logical.1 as i32);
         Some((game, logical, (lx, ly)))
@@ -2630,11 +2633,11 @@ impl TflApp {
     }
 
     fn live_mouse(&mut self, event: &WindowEvent) {
-        let size = self.size;
+        let ui = self.current_ui();
         let Some(game) = self.game.as_mut() else {
             return;
         };
-        let fit = quit_fit(game.quit.as_ref(), size, self.view.dialog_scale);
+        let fit = quit_fit(game.quit.as_ref(), ui);
         let Some(live) = game.live.as_mut() else {
             if game.quit.is_some() {
                 match event {
@@ -3735,7 +3738,6 @@ impl TflApp {
             ui: frame.ui,
             ui_filter: frame.ui.filter(self.ui_filter).into(),
             menu_filter: self.menu_filter,
-            dialog_scale: self.view.dialog_scale,
         };
         let encoder = frame.encoder;
         let interface = frame.interface;
@@ -3920,7 +3922,7 @@ impl TflApp {
                     &mut menus.dialogs,
                     encoder,
                     (interface, size),
-                    (gpu.menu_filter, gpu.dialog_scale),
+                    (gpu.menu_filter, gpu.ui),
                 );
             }
         }
@@ -3953,6 +3955,7 @@ impl TflApp {
     }
 
     fn menu_event(&mut self, event: &WindowEvent) {
+        let ui = self.current_ui();
         let Some(menus) = self.menus.as_mut() else {
             return;
         };
@@ -3966,7 +3969,7 @@ impl TflApp {
             return;
         }
         let fit = if self.report_backdrop.is_some() {
-            quit_dialog_fit(self.size, self.view.dialog_scale)
+            quit_dialog_fit(ui)
         } else {
             CanvasFit::new(self.size, CANVAS)
         };
@@ -4015,7 +4018,7 @@ fn draw_hud(
         return;
     };
     hud.set_paused(paused);
-    hud.set_trading(trading.map(|r| untr_drop(r, size, gpu.ui, gpu.dialog_scale)));
+    hud.set_trading(trading.map(|r| untr_drop(r, gpu.ui)));
     let now = match game.live.as_ref() {
         Some(live) => u64::from(live.game.tick()),
         None => game.replay.as_ref().map_or(0, |r| u64::from(r.tick())),
@@ -4566,34 +4569,30 @@ pub(crate) fn caps_lock_frame(
     })
 }
 
-fn untr_drop(rect: [i32; 4], size: (u32, u32), ui: UiScale, dialog_scale: u16) -> i32 {
-    let fit = untr_fit(size, dialog_scale);
+fn untr_drop(rect: [i32; 4], ui: UiScale) -> i32 {
+    let fit = untr_fit(ui);
     let bottom = f64::from(fit.origin.1) + f64::from(rect[1] + rect[3]) * fit.factor;
-    (bottom * f64::from(ui.logical.1) / f64::from(size.1.max(1)))
+    (bottom * f64::from(ui.logical.1) / f64::from(ui.window.1.max(1)))
         .ceil()
         .max(0.0) as i32
 }
 
-pub(crate) fn quit_fit(
-    quit: Option<&TflQuitDialog>,
-    size: (u32, u32),
-    dialog_scale: u16,
-) -> CanvasFit {
+pub(crate) fn quit_fit(quit: Option<&TflQuitDialog>, ui: UiScale) -> CanvasFit {
     if quit.is_some_and(|q| q.modeless_rect().is_some()) {
-        untr_fit(size, dialog_scale)
+        untr_fit(ui)
     } else {
-        quit_dialog_fit(size, dialog_scale)
+        quit_dialog_fit(ui)
     }
 }
 
-pub(crate) fn untr_fit(size: (u32, u32), dialog_scale: u16) -> CanvasFit {
-    let mut fit = quit_dialog_fit(size, dialog_scale);
+pub(crate) fn untr_fit(ui: UiScale) -> CanvasFit {
+    let mut fit = quit_dialog_fit(ui);
     fit.origin.1 = 0;
     fit
 }
 
-pub(crate) fn quit_dialog_fit(size: (u32, u32), dialog_scale: u16) -> CanvasFit {
-    crate::ui_scale::dialog_fit(size, CANVAS, dialog_scale)
+pub(crate) fn quit_dialog_fit(ui: UiScale) -> CanvasFit {
+    crate::ui_scale::dialog_fit(ui, CANVAS)
 }
 
 fn draw_quit(
@@ -4614,7 +4613,7 @@ fn draw_quit(
         quit,
         encoder,
         (target, size),
-        (gpu.menu_filter, gpu.dialog_scale),
+        (gpu.menu_filter, gpu.ui),
     );
 }
 
@@ -4634,7 +4633,7 @@ impl LiveGpu {
         quit: &TflQuitDialog,
         encoder: &mut wgpu::CommandEncoder,
         (target, size): (&wgpu::TextureView, (u32, u32)),
-        (filter, dialog_scale): (InterfaceFilter, u16),
+        (filter, ui): (InterfaceFilter, UiScale),
     ) {
         let Self {
             dialog_overlay,
@@ -4660,7 +4659,7 @@ impl LiveGpu {
             draw.dst = draw.src;
             let layer = scaler.layer_view(device, CANVAS);
             dialog_overlay.encode_cleared(device, queue, encoder, layer, CANVAS, &[draw]);
-            let fit = quit_fit(Some(quit), size, dialog_scale);
+            let fit = quit_fit(Some(quit), ui);
             scaler.composite_into(
                 queue,
                 encoder,
@@ -4678,7 +4677,7 @@ impl LiveGpu {
         dialogs: &mut TflDialogs,
         encoder: &mut wgpu::CommandEncoder,
         (target, size): (&wgpu::TextureView, (u32, u32)),
-        (filter, dialog_scale): (InterfaceFilter, u16),
+        (filter, ui): (InterfaceFilter, UiScale),
     ) {
         let Some(b) = dialogs.stack().iter().map(|d| d.bounds()).reduce(|a, b| {
             mandrake_tag::Rect::new(
@@ -4716,7 +4715,7 @@ impl LiveGpu {
         draw.dst = draw.src;
         let layer = scaler.layer_view(device, CANVAS);
         dialog_overlay.encode_cleared(device, queue, encoder, layer, CANVAS, &[draw]);
-        let fit = quit_dialog_fit(size, dialog_scale);
+        let fit = quit_dialog_fit(ui);
         scaler.composite_into(
             queue,
             encoder,

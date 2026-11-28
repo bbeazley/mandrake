@@ -30,6 +30,8 @@ const FPS_REPORT_WARM_UP: u64 = 2;
 pub(crate) struct ShellGpu {
     pub(super) surface: wgpu::Surface<'static>,
     pub(super) surface_config: wgpu::SurfaceConfiguration,
+    surface_formats: Vec<wgpu::TextureFormat>,
+    hdr_sdr_white: Option<f32>,
     pub(crate) canvas: Option<mandrake_render::FrameCanvas>,
     pub(super) queue: wgpu::Queue,
     pub(super) device: wgpu::Device,
@@ -45,10 +47,16 @@ impl ShellGpu {
         budget: bool,
         vsync: (bool, &str),
         ten_bit: (bool, &str),
+        hdr: (crate::args::HdrMode, &str),
     ) -> anyhow::Result<Self> {
         let size = window.inner_size();
         let width = size.width.max(1);
         let height = size.height.max(1);
+        let monitor_hdr = if cfg!(not(target_arch = "wasm32")) {
+            crate::win_hdr::query_monitor_hdr(&window)
+        } else {
+            None
+        };
 
         let window_surface::WindowSurface {
             instance,
@@ -58,14 +66,31 @@ impl ShellGpu {
 
         let info = adapter.get_info();
         let timer_features = budget && adapter.features().contains(frame_budget::timer_features());
-        let (device, queue, surface_config, bar_reservation, canvas) = async {
+        let (
+            device,
+            queue,
+            surface_config,
+            surface_formats,
+            hdr_sdr_white,
+            bar_reservation,
+            canvas,
+        ) = async {
             let surface_caps = surface.get_capabilities(&adapter);
             let ten_bit = (cfg!(not(target_arch = "wasm32")) && ten_bit.0, ten_bit.1);
-            let surface_format =
-                window_surface::choose_surface_format(&surface_caps.formats, ten_bit.0);
+            let hdr = if cfg!(target_arch = "wasm32") {
+                (crate::args::HdrMode::Off, hdr.1)
+            } else {
+                hdr
+            };
+            let choice = window_surface::choose_surface_config(
+                &surface_caps.formats,
+                ten_bit.0,
+                hdr.0,
+                monitor_hdr,
+            );
             eprintln!(
                 "{}",
-                window_surface::surface_format_line(surface_format, ten_bit, &surface_caps.formats)
+                window_surface::surface_choice_line(choice, ten_bit, hdr, &surface_caps.formats)
             );
 
             let (device, queue) = adapter
@@ -101,7 +126,7 @@ impl ShellGpu {
             }
 
             let formats = window_surface::SurfaceFormats::choose(
-                surface_format,
+                choice.format,
                 adapter
                     .get_downlevel_capabilities()
                     .flags
@@ -110,7 +135,7 @@ impl ShellGpu {
             let surface_config = wgpu::SurfaceConfiguration {
                 usage: wgpu::TextureUsages::RENDER_ATTACHMENT
                     | (surface_caps.usages & wgpu::TextureUsages::COPY_SRC),
-                format: surface_format,
+                format: choice.format,
                 width,
                 height,
                 present_mode: frame_budget::window_present_mode(
@@ -123,7 +148,7 @@ impl ShellGpu {
                     .first()
                     .copied()
                     .ok_or_else(|| anyhow::anyhow!("surface has no alpha modes"))?,
-                color_space: wgpu::SurfaceColorSpace::Auto,
+                color_space: choice.color_space,
                 view_formats: formats.view_formats(),
                 desired_maximum_frame_latency: 2,
             };
@@ -140,9 +165,22 @@ impl ShellGpu {
             );
 
             let canvas = formats.canvas().then(|| {
-                mandrake_render::FrameCanvas::new(&device, surface_format, (width, height))
+                mandrake_render::FrameCanvas::new(
+                    &device,
+                    choice.format,
+                    (width, height),
+                    choice.hdr_sdr_white,
+                )
             });
-            Ok::<_, anyhow::Error>((device, queue, surface_config, bar_reservation, canvas))
+            Ok::<_, anyhow::Error>((
+                device,
+                queue,
+                surface_config,
+                surface_caps.formats,
+                choice.hdr_sdr_white,
+                bar_reservation,
+                canvas,
+            ))
         }
         .await?;
 
@@ -162,6 +200,8 @@ impl ShellGpu {
         Ok(Self {
             surface,
             surface_config,
+            surface_formats,
+            hdr_sdr_white,
             canvas,
             queue,
             device,
@@ -178,6 +218,7 @@ impl ShellGpu {
         window_surface::FrameSurface {
             surface: &self.surface,
             canvas: self.canvas.as_ref(),
+            config: &self.surface_config,
         }
     }
 }
@@ -309,6 +350,17 @@ fn opens_fullscreen(setting: bool, args: &Args) -> bool {
 
 fn opens_fullscreen_on(setting: bool, args: &Args, web: bool) -> bool {
     setting && args.frame_budget.is_none() && !web
+}
+
+fn opens_hidden() -> bool {
+    opens_hidden_on(std::env::consts::OS)
+}
+
+// On Windows, winit shows the window at its initial size before switching to fullscreen and
+// initializing the GPU, flashing a white box. Other platforms stay visible (Wayland won't
+// configure a hidden window).
+fn opens_hidden_on(os: &str) -> bool {
+    os == "windows"
 }
 
 pub(crate) fn acquire_surface(
@@ -512,9 +564,13 @@ impl ShellHost {
             ui: ui_scale::UiScale::new(self.ui_mode, size.0, size.1),
         });
         window_surface::present_canvas(gpu.canvas.as_ref(), &mut encoder, &frame);
-        let readback = std::mem::take(&mut self.scene_shot).then(|| {
-            crate::screenshot::Readback::encode(&gpu.device, &mut encoder, &frame.texture)
-        });
+        let shot_source = window_surface::screenshot_texture(
+            gpu.canvas.as_ref(),
+            &frame,
+            gpu.surface_config.color_space,
+        );
+        let readback = std::mem::take(&mut self.scene_shot)
+            .then(|| crate::screenshot::Readback::encode(&gpu.device, &mut encoder, shot_source));
         let timed = self.args.frame_budget.is_some().then(Instant::now);
         gpu.queue.submit(std::iter::once(encoder.finish()));
         let submitted = timed.map(|t| (t, Instant::now()));
@@ -710,6 +766,31 @@ impl ShellHost {
         self.gpu.as_ref()
     }
 
+    fn present_initial_black(&mut self) {
+        let Some(gpu) = self.gpu.as_ref() else {
+            return;
+        };
+        let Some(frame) = acquire_surface(
+            &gpu.surface,
+            &gpu.device,
+            &gpu.surface_config,
+            &mut self.scene_timeouts,
+        ) else {
+            return;
+        };
+        let target = window_surface::frame_texture(gpu.canvas.as_ref(), &frame);
+        let view = target.create_view(&Default::default());
+        let mut encoder = gpu
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("Initial Clear Encoder"),
+            });
+        clear_target(&mut encoder, &view, wgpu::Color::BLACK, "Initial Clear");
+        window_surface::present_canvas(gpu.canvas.as_ref(), &mut encoder, &frame);
+        gpu.queue.submit(std::iter::once(encoder.finish()));
+        gpu.queue.present(frame);
+    }
+
     fn init_gpu<S: GameScene + ?Sized>(
         &mut self,
         scene: &mut S,
@@ -718,9 +799,10 @@ impl ShellHost {
         let budget = self.args.frame_budget.is_some();
         let vsync = crate::startup::vsync_wanted(&self.args);
         let ten_bit = crate::startup::ten_bit_wanted(&self.args);
+        let hdr = crate::startup::hdr_wanted(&self.args);
         #[cfg(not(target_arch = "wasm32"))]
         {
-            let gpu = pollster::block_on(ShellGpu::open(window, budget, vsync, ten_bit))?;
+            let gpu = pollster::block_on(ShellGpu::open(window, budget, vsync, ten_bit, hdr))?;
             self.gpu_ready(scene, gpu, false);
         }
         #[cfg(target_arch = "wasm32")]
@@ -729,7 +811,7 @@ impl ShellHost {
             let slot = self.gpu_pending.clone();
             wasm_bindgen_futures::spawn_local(async move {
                 let wake = window.clone();
-                let opened = ShellGpu::open(window, budget, vsync, ten_bit).await;
+                let opened = ShellGpu::open(window, budget, vsync, ten_bit, hdr).await;
                 *slot.borrow_mut() = Some(opened);
                 wake.request_redraw();
             });
@@ -784,21 +866,78 @@ impl ShellHost {
             .as_ref()
             .and_then(MonitorHandle::refresh_rate_millihertz);
         let seen = (monitor, refresh);
-        if self.cap_monitor.as_ref() == Some(&seen) {
+        if self.cap_monitor.as_ref() != Some(&seen) {
+            self.cap_monitor = Some(seen);
+            let budget = self.args.frame_budget.is_some();
+            let vsync = fps_cap::vsync_paces(gpu.surface_config.present_mode);
+            let (cap, source) = self.fps_cap;
+            let choice = fps_cap::choose(cap, refresh, vsync, budget);
+            let source = if budget { "--frame-budget" } else { source };
+            let line = fps_cap::cap_line(cap, source, refresh, choice);
+            if line != self.cap_line {
+                eprintln!("{line}");
+                self.cap_line = line;
+            }
+            self.pacer.set(choice);
+        }
+        self.follow_monitor_hdr();
+    }
+
+    fn follow_monitor_hdr(&mut self) {
+        let (Some(window), Some(gpu)) = (&self.window, &mut self.gpu) else {
+            return;
+        };
+        let Some(monitor_hdr) = crate::win_hdr::query_monitor_hdr(window) else {
+            return;
+        };
+        let ten_bit = crate::startup::ten_bit_wanted(&self.args);
+        let hdr = crate::startup::hdr_wanted(&self.args);
+        let desired = window_surface::choose_surface_config(
+            &gpu.surface_formats,
+            ten_bit.0,
+            hdr.0,
+            Some(monitor_hdr),
+        );
+        if desired.format == gpu.surface_config.format
+            && desired.color_space == gpu.surface_config.color_space
+        {
+            if desired.hdr_sdr_white != gpu.hdr_sdr_white {
+                gpu.hdr_sdr_white = desired.hdr_sdr_white;
+                if let Some(canvas) = &gpu.canvas {
+                    canvas.set_hdr(&gpu.queue, desired.hdr_sdr_white);
+                }
+                eprintln!(
+                    "{}",
+                    window_surface::surface_choice_line(
+                        desired,
+                        ten_bit,
+                        hdr,
+                        &gpu.surface_formats
+                    )
+                );
+            }
             return;
         }
-        self.cap_monitor = Some(seen);
-        let budget = self.args.frame_budget.is_some();
-        let vsync = fps_cap::vsync_paces(gpu.surface_config.present_mode);
-        let (cap, source) = self.fps_cap;
-        let choice = fps_cap::choose(cap, refresh, vsync, budget);
-        let source = if budget { "--frame-budget" } else { source };
-        let line = fps_cap::cap_line(cap, source, refresh, choice);
-        if line != self.cap_line {
-            eprintln!("{line}");
-            self.cap_line = line;
+        // Only switch surface format live when both old and new surfaces are canvas-backed,
+        // keeping all scene and interface pipelines valid on CANVAS_FORMAT.
+        if gpu.canvas.is_some()
+            && window_surface::SurfaceFormats::choose(desired.format, false).canvas()
+        {
+            gpu.surface_config.format = desired.format;
+            gpu.surface_config.color_space = desired.color_space;
+            gpu.hdr_sdr_white = desired.hdr_sdr_white;
+            gpu.surface.configure(&gpu.device, &gpu.surface_config);
+            gpu.canvas = Some(mandrake_render::FrameCanvas::new(
+                &gpu.device,
+                desired.format,
+                (gpu.surface_config.width, gpu.surface_config.height),
+                desired.hdr_sdr_white,
+            ));
+            eprintln!(
+                "{}",
+                window_surface::surface_choice_line(desired, ten_bit, hdr, &gpu.surface_formats)
+            );
         }
-        self.pacer.set(choice);
     }
 
     pub(super) fn frame_drawn(&mut self) {
@@ -1038,14 +1177,24 @@ impl ApplicationHandler for Shell {
             opens_fullscreen(host.fullscreen_setting, &host.args)
                 .then_some(Fullscreen::Borderless(None)),
         );
+        let open_hidden = opens_hidden();
+        let window_attrs = if open_hidden {
+            window_attrs.with_visible(false)
+        } else {
+            window_attrs
+        };
 
         match event_loop.create_window(window_attrs) {
             Ok(window) => {
                 let window = Arc::new(window);
                 host.window = Some(window.clone());
                 scene.on_window(host, &window);
-                if let Err(e) = host.init_gpu(scene.as_mut(), window) {
+                if let Err(e) = host.init_gpu(scene.as_mut(), window.clone()) {
                     error!("GPU initialization failure: {:?}", e);
+                }
+                if open_hidden {
+                    host.present_initial_black();
+                    window.set_visible(true);
                 }
             }
             Err(e) => {
@@ -1207,5 +1356,13 @@ mod tests {
         assert_eq!(facts.cursor, (300.5, 200.0), "the last place it was seen");
         facts.observe(&WindowEvent::RedrawRequested);
         assert!(!facts.focused);
+    }
+
+    #[test]
+    fn windows_opens_hidden_until_first_clear() {
+        assert!(opens_hidden_on("windows"));
+        for os in ["linux", "macos", "freebsd", "unknown"] {
+            assert!(!opens_hidden_on(os), "{os} should open visible");
+        }
     }
 }

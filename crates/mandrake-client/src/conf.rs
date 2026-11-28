@@ -460,7 +460,7 @@ pub fn set_values(path: &Path, table: TablePath, values: &[(&str, Value)]) -> Re
     crate::config_store::write_replacing(path, "toml.new", &new).map_err(|e| e.to_string())
 }
 
-pub const PRESET_KEYS: [(&str, &str); 13] = [
+pub const PRESET_KEYS: [(&str, &str); 14] = [
     ("ui_filter", "--ui-filter"),
     ("ui_scale", "--ui-scale"),
     ("sprite_filter", "--sprite-filter"),
@@ -473,6 +473,7 @@ pub const PRESET_KEYS: [(&str, &str); 13] = [
     ("detail_textures", "--detail-textures"),
     ("vsync", "--vsync"),
     ("ten_bit", "--ten-bit"),
+    ("hdr", "--hdr"),
     ("fps_cap", "--fps-cap"),
 ];
 

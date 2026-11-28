@@ -270,7 +270,10 @@ pub struct SurfaceFormats {
 
 impl SurfaceFormats {
     pub fn choose(preferred: wgpu::TextureFormat, view_formats: bool) -> Self {
-        if preferred == wgpu::TextureFormat::Rgb10a2Unorm {
+        if matches!(
+            preferred,
+            wgpu::TextureFormat::Rgb10a2Unorm | wgpu::TextureFormat::Rgba16Float
+        ) {
             return Self {
                 surface: preferred,
                 scene: mandrake_render::CANVAS_FORMAT,
@@ -304,7 +307,10 @@ impl SurfaceFormats {
     }
 
     pub fn canvas(&self) -> bool {
-        self.surface == wgpu::TextureFormat::Rgb10a2Unorm
+        matches!(
+            self.surface,
+            wgpu::TextureFormat::Rgb10a2Unorm | wgpu::TextureFormat::Rgba16Float
+        )
     }
 }
 
@@ -312,6 +318,7 @@ impl SurfaceFormats {
 pub struct FrameSurface<'a> {
     pub surface: &'a wgpu::Surface<'static>,
     pub canvas: Option<&'a mandrake_render::FrameCanvas>,
+    pub config: &'a wgpu::SurfaceConfiguration,
 }
 
 pub fn frame_texture<'a>(
@@ -319,6 +326,18 @@ pub fn frame_texture<'a>(
     frame: &'a wgpu::SurfaceTexture,
 ) -> &'a wgpu::Texture {
     canvas.map_or(&frame.texture, |c| c.texture())
+}
+
+pub fn screenshot_texture<'a>(
+    canvas: Option<&'a mandrake_render::FrameCanvas>,
+    frame: &'a wgpu::SurfaceTexture,
+    color_space: wgpu::SurfaceColorSpace,
+) -> &'a wgpu::Texture {
+    if color_space == wgpu::SurfaceColorSpace::ExtendedSrgbLinear {
+        frame_texture(canvas, frame)
+    } else {
+        &frame.texture
+    }
 }
 
 pub fn present_canvas(
@@ -332,6 +351,48 @@ pub fn present_canvas(
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct SurfaceChoice {
+    pub format: wgpu::TextureFormat,
+    pub color_space: wgpu::SurfaceColorSpace,
+    pub hdr_sdr_white: Option<f32>,
+}
+
+pub fn hdr_sdr_white_wanted(
+    mode: crate::args::HdrMode,
+    monitor_hdr: Option<crate::win_hdr::MonitorHdrInfo>,
+) -> Option<f32> {
+    match mode {
+        crate::args::HdrMode::Off => None,
+        crate::args::HdrMode::Auto => monitor_hdr
+            .filter(|info| info.hdr_active)
+            .map(|info| info.sdr_white_scale),
+        crate::args::HdrMode::On => Some(monitor_hdr.map_or(1.0, |info| info.sdr_white_scale)),
+    }
+}
+
+pub fn choose_surface_config(
+    listed: &[wgpu::TextureFormat],
+    ten_bit: bool,
+    hdr_mode: crate::args::HdrMode,
+    monitor_hdr: Option<crate::win_hdr::MonitorHdrInfo>,
+) -> SurfaceChoice {
+    if let Some(sdr_white) = hdr_sdr_white_wanted(hdr_mode, monitor_hdr)
+        && listed.contains(&wgpu::TextureFormat::Rgba16Float)
+    {
+        return SurfaceChoice {
+            format: wgpu::TextureFormat::Rgba16Float,
+            color_space: wgpu::SurfaceColorSpace::ExtendedSrgbLinear,
+            hdr_sdr_white: Some(sdr_white),
+        };
+    }
+    SurfaceChoice {
+        format: choose_surface_format(listed, ten_bit),
+        color_space: wgpu::SurfaceColorSpace::Auto,
+        hdr_sdr_white: None,
+    }
+}
+
 pub fn choose_surface_format(listed: &[wgpu::TextureFormat], ten_bit: bool) -> wgpu::TextureFormat {
     let ten = wgpu::TextureFormat::Rgb10a2Unorm;
     if ten_bit && listed.contains(&ten) {
@@ -342,6 +403,27 @@ pub fn choose_surface_format(listed: &[wgpu::TextureFormat], ten_bit: bool) -> w
         .copied()
         .find(|f| f.is_srgb())
         .unwrap_or(listed[0])
+}
+
+pub fn surface_choice_line(
+    choice: SurfaceChoice,
+    ten_bit: (bool, &str),
+    hdr: (crate::args::HdrMode, &str),
+    listed: &[wgpu::TextureFormat],
+) -> String {
+    if let Some(scale) = choice.hdr_sdr_white {
+        let nits = crate::win_hdr::sdr_white_nits(scale);
+        let why = match hdr.0 {
+            crate::args::HdrMode::Auto => format!("HDR auto by {}", hdr.1),
+            crate::args::HdrMode::On => format!("HDR on by {}", hdr.1),
+            crate::args::HdrMode::Off => format!("HDR by {}", hdr.1),
+        };
+        return format!(
+            "surface format: {:?} (HDR scRGB, {nits} nits white; {why}) of {listed:?}",
+            choice.format
+        );
+    }
+    surface_format_line(choice.format, ten_bit, listed)
 }
 
 pub fn surface_format_line(
@@ -448,5 +530,99 @@ mod surface_format_tests {
             };
             assert_eq!(SurfaceFormats::of(&config), f);
         }
+    }
+
+    #[test]
+    fn hdr_surface_selection_and_canvas_backing() {
+        use super::{SurfaceChoice, choose_surface_config, surface_choice_line};
+        use crate::args::HdrMode;
+        use crate::win_hdr::MonitorHdrInfo;
+
+        let listed = [
+            F::Bgra8UnormSrgb,
+            F::Bgra8Unorm,
+            F::Rgb10a2Unorm,
+            F::Rgba16Float,
+        ];
+        let hdr_on = Some(MonitorHdrInfo {
+            hdr_active: true,
+            sdr_white_scale: 3.0,
+        });
+        let hdr_off = Some(MonitorHdrInfo {
+            hdr_active: false,
+            sdr_white_scale: 1.0,
+        });
+
+        assert_eq!(
+            choose_surface_config(&listed, true, HdrMode::Auto, hdr_on),
+            SurfaceChoice {
+                format: F::Rgba16Float,
+                color_space: wgpu::SurfaceColorSpace::ExtendedSrgbLinear,
+                hdr_sdr_white: Some(3.0),
+            }
+        );
+        assert_eq!(
+            choose_surface_config(&listed, true, HdrMode::Auto, hdr_off),
+            SurfaceChoice {
+                format: F::Rgb10a2Unorm,
+                color_space: wgpu::SurfaceColorSpace::Auto,
+                hdr_sdr_white: None,
+            }
+        );
+        assert_eq!(
+            choose_surface_config(&listed, true, HdrMode::Auto, None),
+            SurfaceChoice {
+                format: F::Rgb10a2Unorm,
+                color_space: wgpu::SurfaceColorSpace::Auto,
+                hdr_sdr_white: None,
+            }
+        );
+        assert_eq!(
+            choose_surface_config(&listed, true, HdrMode::Off, hdr_on),
+            SurfaceChoice {
+                format: F::Rgb10a2Unorm,
+                color_space: wgpu::SurfaceColorSpace::Auto,
+                hdr_sdr_white: None,
+            }
+        );
+        assert_eq!(
+            choose_surface_config(&listed, true, HdrMode::On, None),
+            SurfaceChoice {
+                format: F::Rgba16Float,
+                color_space: wgpu::SurfaceColorSpace::ExtendedSrgbLinear,
+                hdr_sdr_white: Some(1.0),
+            }
+        );
+        assert_eq!(
+            choose_surface_config(
+                &[F::Bgra8UnormSrgb, F::Rgb10a2Unorm],
+                true,
+                HdrMode::On,
+                hdr_on
+            ),
+            SurfaceChoice {
+                format: F::Rgb10a2Unorm,
+                color_space: wgpu::SurfaceColorSpace::Auto,
+                hdr_sdr_white: None,
+            }
+        );
+
+        let f = SurfaceFormats::choose(F::Rgba16Float, true);
+        assert_eq!((f.scene, f.interface), (F::Rgba16Float, F::Rgba16Float));
+        assert!(f.view_formats().is_empty());
+        assert!(f.canvas());
+
+        let line = surface_choice_line(
+            choose_surface_config(&listed, true, HdrMode::Auto, hdr_on),
+            (true, "the default"),
+            (HdrMode::Auto, "the default"),
+            &listed,
+        );
+        assert!(
+            line.contains(
+                "surface format: Rgba16Float (HDR scRGB, 240 nits white; HDR auto by the default)"
+            ),
+            "{line}"
+        );
     }
 }

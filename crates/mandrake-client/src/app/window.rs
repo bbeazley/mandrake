@@ -153,7 +153,6 @@ impl ClientApp {
         app.settings_path = shell.settings_path.clone();
         app.ui_mode = shell.ui_mode;
         app.ui_filter = view.ui_filter;
-        app.dialog_scale = view.dialog_scale;
         app.sampling = view.sampling;
         app.fog = crate::fog::MapFog::at_map_load(args, &app.mesh_tag);
         app.lighting =

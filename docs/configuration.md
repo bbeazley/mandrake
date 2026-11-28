@@ -189,11 +189,10 @@ patch clock, so a headless frame is reproducible.
 
 ## Lighting (`[lighting]`)
 
-Module `lighting.rs` (`LightingConfig`, `LightingLayer`, `MapLighting`). This is a prototype of
-real-time lighting, and it is off unless `--lighting on` is given. The original maps are lit in
-their textures, so a map without a `[map.<mesh>]` table stays unlit even with `--lighting on`.
-Giving `--lighting-darkness` or `--lighting-ambient-color` turns lighting on for any map. TFL maps
-use `[tfl.map.<mesh>]`, and TFL gets only the ambient light.
+Module `lighting.rs` (`LightingConfig`, `LightingLayer`, `MapLighting`). Real-time lighting is on
+by default in both games (`--lighting off` disables it). The original maps are lit in their
+textures, so a map without a `[map.<mesh>]` table stays unlit unless `--lighting-darkness` or
+`--lighting-ambient-color` is given. TFL maps use `[tfl.map.<mesh>]`.
 
 | Key | Meaning | Flag |
 |---|---|---|
@@ -316,7 +315,7 @@ preference files, and `settings::save_progress` refuses to write inside the game
 | `detail_textures` | `true` draws a plugin's landscape detail textures (default off) | `--detail-textures` |
 | `vsync` | `true` waits for the display refresh (default off) | `--vsync` |
 | `fps_cap` | `"auto"` (default: monitor refresh minus 3 %, or 240 if unknown), a number, or `"off"` | `--fps-cap` |
-| `fog`, `lighting` | Both games' look switches, as `--fog` (`on`, `off`, `engine`; `true`/`false`) and `--lighting`. Left out, each game keeps its default: Myth II fog by `--sampling` (on, `engine` with `linear`) and lighting off; TFL both on. `engine` in TFL is TFL 1.5's fog: none | `--fog`, `--lighting` |
+| `fog`, `lighting` | Both games' look switches, as `--fog` (`on`, `off`, `engine`; `true`/`false`) and `--lighting`. Left out, each game keeps its default: Myth II fog by `--sampling` (on, `engine` with `linear`), TFL fog on (`engine` in TFL is TFL 1.5's fog: none), and lighting on in both games (maps without a `[lighting]` table remain unlit) | `--fog`, `--lighting` |
 | `detail_shadows` | TFL only: `false` draws TFL 1.5's shadow bitmaps instead of Myth II 1.8.5's detail shadows (default on). Myth II always draws its detail shadows, as 1.8.5 does | `--detail-shadows` |
 | `[display.tfl]` `smoothing` | `false` draws TFL tick by tick, as TFL 1.5 does. The default interpolates as Myth II does | none |
 | `[display.tfl]` `hover_frames` | `false` frames only the selection in TFL. The default also frames the unit under the pointer | none |
