@@ -184,11 +184,17 @@ pub(crate) fn render_headless_frame(
             "Media surface: {} animated vertices",
             terrain_mesh.media_vertices().len()
         );
+        let mut media_encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("Headless Media Update Encoder"),
+        });
         terrain_mesh.update_media(
+            &device,
             &queue,
+            &mut media_encoder,
             media::local_time(ticks),
             &mandrake_math::engine::trig_tables().sine,
         );
+        queue.submit(std::iter::once(media_encoder.finish()));
         let mut water = match (water_settings, sprite_mgr.scenery_objects.media.as_deref()) {
             (Some(settings), Some(map)) => {
                 let mut w = mandrake_render::water::WaterShading::new(

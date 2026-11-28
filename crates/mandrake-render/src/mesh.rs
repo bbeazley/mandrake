@@ -255,6 +255,8 @@ pub struct TerrainMesh {
     media_occluder_triangles: Vec<u32>,
     media_vertex_runs: Vec<Range<u32>>,
     media_occluder_runs: Vec<Range<u32>>,
+    media_staging: Option<wgpu::Buffer>,
+    media_staging_bytes: Vec<u8>,
     cell_size: f32,
     half_w: f32,
     half_d: f32,
@@ -371,6 +373,8 @@ impl TerrainMesh {
             media_occluder_triangles: Vec::new(),
             media_vertex_runs: Vec::new(),
             media_occluder_runs: Vec::new(),
+            media_staging: None,
+            media_staging_bytes: Vec::new(),
             cell_size: 1.0,
             half_w: 0.0,
             half_d: 0.0,
@@ -456,6 +460,10 @@ impl TerrainMesh {
         &self.media_vertices
     }
 
+    pub fn media_run_counts(&self) -> (usize, usize) {
+        (self.media_vertex_runs.len(), self.media_occluder_runs.len())
+    }
+
     pub fn is_plain_grid(&self) -> bool {
         self.vertex_sources.is_none() && self.detail_buffer.is_none()
     }
@@ -525,7 +533,24 @@ impl TerrainMesh {
         )
     }
 
-    pub fn update_media(&mut self, queue: &wgpu::Queue, local_time: i32, sine: &[i16; 1024]) {
+    pub fn update_media(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        encoder: &mut wgpu::CommandEncoder,
+        local_time: i32,
+        sine: &[i16; 1024],
+    ) {
+        const {
+            assert!(
+                core::mem::size_of::<TerrainVertex>()
+                    .is_multiple_of(wgpu::COPY_BUFFER_ALIGNMENT as usize)
+            );
+            assert!(
+                core::mem::size_of::<OccluderVertex>()
+                    .is_multiple_of(wgpu::COPY_BUFFER_ALIGNMENT as usize)
+            );
+        }
         if self.media_time == Some(local_time) {
             return;
         }
@@ -535,20 +560,60 @@ impl TerrainMesh {
         {
             return;
         }
+
+        let vert_stride = core::mem::size_of::<TerrainVertex>() as u64;
+        let occ_tri_stride = 3 * core::mem::size_of::<OccluderVertex>() as u64;
+
+        self.media_staging_bytes.clear();
         for run in &self.media_vertex_runs {
-            queue.write_buffer(
-                &self.vertex_buffer,
-                u64::from(run.start) * std::mem::size_of::<TerrainVertex>() as u64,
-                bytemuck::cast_slice(&self.vertices[run.start as usize..run.end as usize]),
-            );
+            let bytes = bytemuck::cast_slice(&self.vertices[run.start as usize..run.end as usize]);
+            self.media_staging_bytes.extend_from_slice(bytes);
         }
         for run in &self.media_occluder_runs {
-            queue.write_buffer(
-                &self.occluder_buffer,
-                u64::from(run.start) * 3 * std::mem::size_of::<OccluderVertex>() as u64,
-                bytemuck::cast_slice(&self.occluders[run.start as usize * 3..run.end as usize * 3]),
-            );
+            let bytes =
+                bytemuck::cast_slice(&self.occluders[run.start as usize * 3..run.end as usize * 3]);
+            self.media_staging_bytes.extend_from_slice(bytes);
         }
+        if self.media_staging_bytes.is_empty() {
+            return;
+        }
+
+        let needed = self.media_staging_bytes.len() as u64;
+        if self
+            .media_staging
+            .as_ref()
+            .is_none_or(|buf| buf.size() < needed)
+        {
+            self.media_staging = Some(device.create_buffer(&wgpu::BufferDescriptor {
+                label: Some("Terrain Media Staging Buffer"),
+                size: needed,
+                usage: wgpu::BufferUsages::COPY_SRC | wgpu::BufferUsages::COPY_DST,
+                mapped_at_creation: false,
+            }));
+        }
+        let staging = self.media_staging.as_ref().unwrap();
+        queue.write_buffer(staging, 0, &self.media_staging_bytes);
+
+        let mut src_off = 0u64;
+        for run in &self.media_vertex_runs {
+            let len = u64::from(run.end - run.start) * vert_stride;
+            if len == 0 {
+                continue;
+            }
+            let dst_off = u64::from(run.start) * vert_stride;
+            encoder.copy_buffer_to_buffer(staging, src_off, &self.vertex_buffer, dst_off, len);
+            src_off += len;
+        }
+        for run in &self.media_occluder_runs {
+            let len = u64::from(run.end - run.start) * occ_tri_stride;
+            if len == 0 {
+                continue;
+            }
+            let dst_off = u64::from(run.start) * occ_tri_stride;
+            encoder.copy_buffer_to_buffer(staging, src_off, &self.occluder_buffer, dst_off, len);
+            src_off += len;
+        }
+        debug_assert_eq!(src_off, needed);
     }
 
     fn move_media(&mut self, local_time: i32, sine: &[i16; 1024]) -> bool {

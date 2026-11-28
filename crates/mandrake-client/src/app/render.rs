@@ -167,10 +167,17 @@ impl ClientApp {
         self.fog_seconds = self.fog.seconds_now();
         let local_time = media::local_time(self.sim.current_tick);
         let window = (gpu.surface_config.width, gpu.surface_config.height);
+        let mut encoder = gpu
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("Frame Encoder"),
+            });
         if gpu.media_time != Some(local_time) {
             gpu.media_time = Some(local_time);
             gpu.terrain_mesh.update_media(
+                &gpu.device,
                 &gpu.queue,
+                &mut encoder,
                 local_time,
                 &mandrake_math::engine::trig_tables().sine,
             );
@@ -211,11 +218,6 @@ impl ClientApp {
             .then(|| interface_state::caps_lock_mode(self.controls.options.caps_lock));
         let world =
             crate::world_view::myth2::drawn_world(&self.sim, &self.unit_animator, &gpu.sprite_mgr);
-        let mut encoder = gpu
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("Frame Encoder"),
-            });
         if let Some(water) = gpu.water.as_mut().filter(|w| w.has_ripples()) {
             let now = self.machine_clock.elapsed().as_millis();
             let dt = gpu

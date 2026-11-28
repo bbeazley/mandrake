@@ -238,11 +238,19 @@ impl ClientApp {
                     self.landscape_detail.as_deref(),
                     gpu.mesh_ripple.lod(),
                 );
+                let mut encoder =
+                    gpu.device
+                        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                            label: Some("Rebuild Media Update Encoder"),
+                        });
                 gpu.terrain_mesh.update_media(
+                    &gpu.device,
                     &gpu.queue,
+                    &mut encoder,
                     media::local_time(self.sim.current_tick),
                     sine,
                 );
+                gpu.queue.submit(std::iter::once(encoder.finish()));
                 if let Some(water) = gpu.water.as_mut() {
                     water.update_terrain(
                         &gpu.device,
